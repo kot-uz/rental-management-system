@@ -1,7 +1,6 @@
-LABEL org.opencontainers.image.source=https://github.com/your-org/rental-management-system
-
 # ─── Stage 1: builder ────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --prefer-offline
@@ -11,7 +10,7 @@ RUN npm run build
 
 # ─── Stage 2: runner ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apk add --no-cache openssl && addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist

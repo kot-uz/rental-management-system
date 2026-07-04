@@ -10,7 +10,6 @@ coverage
 .DS_Store
 *.log
 docker-compose.override.yml
-apps/backend/prisma/migrations/
 
 # Docs, agents, and config dirs
 docs/

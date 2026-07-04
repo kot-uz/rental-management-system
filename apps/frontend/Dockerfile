@@ -1,5 +1,3 @@
-LABEL org.opencontainers.image.source=https://github.com/your-org/rental-management-system
-
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
