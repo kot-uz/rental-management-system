@@ -33,6 +33,9 @@ services:
     image: ${FRONTEND_IMAGE:-rental-frontend:latest}
     build: !reset null
 
+  mailhog:
+    ports: !override []
+
   nginx:
     image: nginx:1.27-alpine
     # Replace (not merge) the base nginx.conf mount so the image's default
