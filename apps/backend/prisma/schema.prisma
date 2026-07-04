@@ -1,0 +1,690 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  MANAGER
+}
+
+enum ApartmentStatus {
+  VACANT
+  OCCUPIED
+  ARCHIVED
+}
+
+enum FileStatus {
+  PENDING
+  LIVE
+  DELETED
+}
+
+enum IdType {
+  PASSPORT
+  NATIONAL_ID
+  OTHER
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum RentPeriodStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum UtilityType {
+  ELECTRICITY
+  GAS
+  WATER
+  INTERNET
+  GARBAGE
+  HEATING
+  CUSTOM
+}
+
+enum UtilityStatus {
+  UNPAID
+  PAID
+  CONFIRMED
+}
+
+enum RepairStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+  CANCELED
+}
+
+enum RepairSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DepositStatus {
+  HELD
+  PARTIALLY_RETURNED
+  RETURNED
+  FORFEITED
+}
+
+enum RepairPaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum NotificationType {
+  RENT_DUE
+  RENT_OVERDUE
+  LEASE_EXPIRING
+  REPAIR_STATUS_CHANGED
+  SYSTEM
+}
+
+// ─── Auth Models ─────────────────────────────────────────────────────────────
+
+model Org {
+  id        String    @id @default(uuid())
+  name      String
+  timezone  String    @default("UTC")
+  currency  String    @default("USD")
+  locale    String    @default("en")
+  // Day of month rent is considered due (1-28). Drives rent-period generation.
+  rentDueDay        Int     @default(1)
+  // Grace days after due date before a period is flagged overdue.
+  lateFeeGraceDays  Int     @default(0)
+  // Late fee as a percentage of the outstanding amount (0 = disabled).
+  lateFeePercent    Decimal @default(0) @db.Decimal(5, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users         User[]
+  apartments    Apartment[]
+  tenants       Tenant[]
+  rentPeriods   RentPeriod[]
+  payments      Payment[]
+  utilityRecords UtilityRecord[]
+  repairs       Repair[]
+  notifications Notification[]
+  fileAssets    FileAsset[]
+  leases        Lease[]
+  contractors   Contractor[]
+  webhookEndpoints WebhookEndpoint[]
+  documents     Document[]
+  tags          Tag[]
+  lockedPeriods LockedPeriod[]
+
+  @@map("orgs")
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  orgId               String
+  email               String    @unique
+  passwordHash        String
+  role                Role      @default(MANAGER)
+  firstName           String
+  lastName            String
+  telegram            String?
+  telegramChatId      String?
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  org                 Org                  @relation(fields: [orgId], references: [id])
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([orgId])
+  @@index([email])
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  family     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  orgId      String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([orgId, entityType, entityId])
+  @@index([orgId, createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Apartment + Files ───────────────────────────────────────────────────────
+
+model Apartment {
+  id        String          @id @default(uuid())
+  orgId     String
+  address   String
+  unitNumber String?
+  floor     Int?
+  rooms     Int?
+  areaSqm   Decimal?        @db.Decimal(8, 2)
+  status    ApartmentStatus @default(VACANT)
+  purchaseDate DateTime?    @db.Date
+  purchasePrice Decimal?    @db.Decimal(12, 2)
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  org      Org             @relation(fields: [orgId], references: [id])
+  leases   Lease[]
+  repairs  Repair[]
+  utilities UtilityRecord[]
+
+  @@index([orgId, status])
+  @@index([orgId, deletedAt])
+  @@map("apartments")
+}
+
+model FileAsset {
+  id           String     @id @default(uuid())
+  orgId        String
+  ownerId      String
+  ownerType    String
+  s3Key        String     @unique
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  status       FileStatus @default(PENDING)
+  purpose      String?
+  thumbS3Key   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  org       Org        @relation(fields: [orgId], references: [id])
+  documents Document[]
+
+  @@index([orgId, ownerId, ownerType])
+  @@index([orgId, status, createdAt])
+  @@map("file_assets")
+}
+
+// ─── Tenant ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id               String    @id @default(uuid())
+  orgId            String
+  firstName        String
+  lastName         String
+  phone            String
+  idType           IdType    @default(PASSPORT)
+  idNumber         String
+  telegram         String?
+  telegramChatId   String?
+  emergencyContact String?
+  notes            String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  org          Org          @relation(fields: [orgId], references: [id])
+  leaseParties LeaseParty[]
+
+  @@index([orgId, deletedAt])
+  @@map("tenants")
+}
+
+// ─── Lease ───────────────────────────────────────────────────────────────────
+
+model Lease {
+  id              String      @id @default(uuid())
+  orgId           String
+  apartmentId     String
+  status          LeaseStatus @default(ACTIVE)
+  startDate       DateTime    @db.Date
+  endDate         DateTime    @db.Date
+  monthlyRent     Decimal     @db.Decimal(12, 2)
+  currency        String      @default("USD")
+  depositAmount   Decimal       @db.Decimal(12, 2)
+  depositBalance  Decimal       @db.Decimal(12, 2)
+  depositStatus   DepositStatus @default(HELD)
+  depositReturnedAmount Decimal? @db.Decimal(12, 2)
+  depositSettledAt      DateTime?
+  depositSettlementNote String?
+  rentDueDay      Int         @default(1)
+  terminatedAt    DateTime?
+  terminationNote String?
+  penaltyAmount   Decimal?    @db.Decimal(12, 2)
+  renewedFromId   String?
+  version         Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  org         Org              @relation(fields: [orgId], references: [id])
+  apartment   Apartment        @relation(fields: [apartmentId], references: [id])
+  parties     LeaseParty[]
+  rentPeriods RentPeriod[]
+  deductions  DepositDeduction[]
+  renewedFrom Lease?           @relation("LeaseRenewal", fields: [renewedFromId], references: [id])
+  renewals    Lease[]          @relation("LeaseRenewal")
+
+  @@index([orgId, status])
+  @@index([orgId, apartmentId, status])
+  @@index([orgId, endDate])
+  @@map("leases")
+}
+
+model LeaseParty {
+  id        String  @id @default(uuid())
+  leaseId   String
+  tenantId  String
+  isPrimary Boolean @default(false)
+
+  lease  Lease  @relation(fields: [leaseId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([leaseId, tenantId])
+  @@index([tenantId])
+  @@map("lease_parties")
+}
+
+model DepositDeduction {
+  id        String   @id @default(uuid())
+  leaseId   String
+  amount    Decimal  @db.Decimal(12, 2)
+  reason    String
+  createdAt DateTime @default(now())
+
+  lease Lease @relation(fields: [leaseId], references: [id])
+
+  @@index([leaseId])
+  @@map("deposit_deductions")
+}
+
+// ─── Rent Payments ───────────────────────────────────────────────────────────
+
+model RentPeriod {
+  id             String           @id @default(uuid())
+  orgId          String
+  leaseId        String
+  periodYear     Int
+  periodMonth    Int
+  dueDate        DateTime         @db.Date
+  expectedAmount Decimal          @db.Decimal(12, 2)
+  paidAmount     Decimal          @db.Decimal(12, 2) @default(0)
+  status         RentPeriodStatus @default(UNPAID)
+  isProrated     Boolean          @default(false)
+  version        Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  org      Org       @relation(fields: [orgId], references: [id])
+  lease    Lease     @relation(fields: [leaseId], references: [id])
+  payments Payment[]
+
+  @@unique([leaseId, periodYear, periodMonth])
+  @@index([orgId, status])
+  @@index([orgId, leaseId])
+  @@index([orgId, dueDate, status])
+  @@map("rent_periods")
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  orgId        String
+  rentPeriodId String
+  amount       Decimal       @db.Decimal(12, 2)
+  paymentDate  DateTime      @db.Date
+  method       PaymentMethod @default(CASH)
+  note         String?
+  proofFileId  String?
+  recordedBy   String
+  createdAt    DateTime      @default(now())
+
+  org        Org        @relation(fields: [orgId], references: [id])
+  rentPeriod RentPeriod @relation(fields: [rentPeriodId], references: [id])
+
+  @@index([orgId, rentPeriodId])
+  @@index([orgId, paymentDate])
+  @@map("payments")
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+model UtilityRecord {
+  id            String        @id @default(uuid())
+  orgId         String
+  apartmentId   String
+  leaseId       String?
+  type          UtilityType
+  customTypeName String?
+  periodYear    Int
+  periodMonth   Int
+  readingFrom   Decimal?      @db.Decimal(10, 3)
+  readingTo     Decimal?      @db.Decimal(10, 3)
+  amount        Decimal       @db.Decimal(12, 2)
+  status        UtilityStatus @default(UNPAID)
+  receiptFileId String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  org       Org       @relation(fields: [orgId], references: [id])
+  apartment Apartment @relation(fields: [apartmentId], references: [id])
+
+  @@index([orgId, apartmentId, periodYear, periodMonth])
+  @@index([orgId, type, status])
+  @@map("utility_records")
+}
+
+// ─── Contractors ─────────────────────────────────────────────────────────────
+
+model Contractor {
+  id        String    @id @default(uuid())
+  orgId     String
+  name      String
+  phone     String?
+  email     String?
+  telegram  String?
+  specialty String?
+  notes     String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org     Org      @relation(fields: [orgId], references: [id])
+  repairs Repair[]
+
+  @@index([orgId, deletedAt])
+  @@map("contractors")
+}
+
+// ─── Repairs ─────────────────────────────────────────────────────────────────
+
+model Repair {
+  id              String              @id @default(uuid())
+  orgId           String
+  apartmentId     String
+  leaseId         String?
+  title           String
+  description     String?
+  severity        RepairSeverity      @default(LOW)
+  location        String?
+  status          RepairStatus        @default(OPEN)
+  costEstimate    Decimal?            @db.Decimal(12, 2)
+  costActual      Decimal?            @db.Decimal(12, 2)
+  paymentStatus   RepairPaymentStatus @default(UNPAID)
+  contractorId    String?
+  contractorName  String?
+  contractorPhone String?
+  contractorNotes String?
+  completedAt     DateTime?
+  canceledAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  org        Org             @relation(fields: [orgId], references: [id])
+  apartment  Apartment       @relation(fields: [apartmentId], references: [id])
+  contractor Contractor?     @relation(fields: [contractorId], references: [id])
+  comments   RepairComment[]
+
+  @@index([orgId, apartmentId, status])
+  @@index([orgId, status, severity])
+  @@index([contractorId])
+  @@map("repairs")
+}
+
+model RepairComment {
+  id        String   @id @default(uuid())
+  repairId  String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  repair Repair @relation(fields: [repairId], references: [id])
+
+  @@index([repairId])
+  @@map("repair_comments")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+model Notification {
+  id             String           @id @default(uuid())
+  orgId          String
+  userId         String
+  type           NotificationType
+  title          String
+  body           String
+  refType        String?
+  refId          String?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  idempotencyKey String           @unique
+  createdAt      DateTime         @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, userId, isRead])
+  @@index([orgId, userId, createdAt])
+  @@map("notifications")
+}
+
+// ─── Outbound webhooks ───────────────────────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model WebhookEndpoint {
+  id        String    @id @default(uuid())
+  orgId     String
+  url       String
+  secret    String
+  events    String[]
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org        Org               @relation(fields: [orgId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([orgId, deletedAt])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  orgId          String
+  endpointId     String
+  // The evt_ id carried in the payload envelope — stable across retries.
+  eventId        String
+  eventType      String
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseStatus Int?
+  error          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([orgId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+// ─── Documents ───────────────────────────────────────────────────────────────
+
+model Document {
+  id           String    @id @default(uuid())
+  orgId        String
+  // Polymorphic owner — mirrors FileAsset (apartment | lease | tenant | contractor).
+  ownerType    String
+  ownerId      String
+  fileId       String
+  title        String
+  documentType String    @default("OTHER") // LEASE | INSURANCE | OTHER
+  expiresAt    DateTime? @db.Date
+  createdBy    String?
+  version      Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  org  Org       @relation(fields: [orgId], references: [id])
+  file FileAsset @relation(fields: [fileId], references: [id])
+
+  @@index([orgId, ownerType, ownerId])
+  @@index([orgId, expiresAt])
+  @@map("documents")
+}
+
+// ─── Tags ────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id        String    @id @default(uuid())
+  orgId     String
+  name      String // stored trimmed + lowercased
+  color     String? // hex #RRGGBB
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  org         Org             @relation(fields: [orgId], references: [id])
+  assignments TagAssignment[]
+
+  @@index([orgId, deletedAt])
+  @@map("tags")
+}
+
+model TagAssignment {
+  id         String   @id @default(uuid())
+  orgId      String
+  tagId      String
+  // Polymorphic target — apartment | tenant | repair | contractor.
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, entityType, entityId])
+  @@index([orgId, entityType, entityId])
+  @@map("tag_assignments")
+}
+
+// ─── Accounting: locked periods ──────────────────────────────────────────────
+
+model LockedPeriod {
+  id               String    @id @default(uuid())
+  orgId            String
+  yearMonth        String // YYYY-MM
+  lockedAt         DateTime  @default(now())
+  lockedByUserId   String
+  unlockedAt       DateTime?
+  unlockedByUserId String?
+  note             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, yearMonth])
+  @@index([orgId, unlockedAt])
+  @@map("locked_periods")
+}
+
+// ─── Telegram: one-time deep-link tokens for chat_id binding ──────────────────
+
+model TelegramLinkToken {
+  id          String    @id @default(uuid())
+  orgId       String
+  subjectType String // 'tenant' | 'user'
+  subjectId   String
+  token       String    @unique
+  createdAt   DateTime  @default(now())
+  usedAt      DateTime?
+
+  @@index([orgId, subjectType, subjectId])
+  @@map("telegram_link_tokens")
+}
+
+// ─── Rent reminders: idempotency log for sent reminders ───────────────────────
+
+model RentReminderLog {
+  id           String   @id @default(uuid())
+  orgId        String
+  rentPeriodId String
+  phase        String // 'REMINDER_3D' | 'DUE_TODAY' | 'OVERDUE'
+  target       String // 'tenant:<id>' | 'user:<id>'
+  sentAt       DateTime @default(now())
+
+  @@unique([rentPeriodId, phase, target])
+  @@index([orgId, rentPeriodId])
+  @@map("rent_reminder_logs")
+}

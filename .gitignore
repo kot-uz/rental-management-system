@@ -1,0 +1,23 @@
+node_modules
+dist
+build
+.env
+.env.local
+coverage
+.next
+.vscode
+.idea
+.DS_Store
+*.log
+docker-compose.override.yml
+apps/backend/prisma/migrations/
+
+# Docs, agents, and config dirs
+docs/
+agents/
+.claude/
+.github/
+
+# Markdown files except root README.md
+*.md
+!README.md

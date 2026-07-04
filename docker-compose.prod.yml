@@ -1,0 +1,46 @@
+# Production overlay — layer on top of the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Differences vs base:
+#   - Pulls pre-built images by tag instead of building locally
+#   - TLS-terminating nginx with conf.d + certs + ACME webroot
+#   - Redis uses the hardened infrastructure/redis/redis.conf
+#   - Postgres runs the init.sql bootstrap (extensions)
+#   - No published DB/Redis/MinIO ports (only nginx 80/443 is exposed)
+
+services:
+  postgres:
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  redis:
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+
+  backend:
+    image: ${BACKEND_IMAGE:-rental-backend:latest}
+    build: !reset null
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/api/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-rental-frontend:latest}
+    build: !reset null
+
+  nginx:
+    image: nginx:1.27-alpine
+    # Replace (not merge) the base nginx.conf mount so the image's default
+    # main config — which `include`s conf.d/*.conf — loads infrastructure/.../app.conf.
+    volumes: !override
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
+      - ./infrastructure/nginx/certbot:/var/www/certbot:ro
+    ports: !override
+      - '80:80'
+      - '443:443'
