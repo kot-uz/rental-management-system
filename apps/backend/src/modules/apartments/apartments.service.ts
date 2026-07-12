@@ -98,7 +98,7 @@ export class ApartmentsService {
   }
 
   async remove(id: string, orgId: string): Promise<void> {
-    const apt = await this.findOne(id, orgId);
+    await this.findOne(id, orgId);
     const activeLease = await this.prisma.lease.findFirst({
       where: { apartmentId: id, status: 'ACTIVE' },
     });

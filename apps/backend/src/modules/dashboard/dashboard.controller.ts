@@ -3,8 +3,6 @@ import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Min, Max } from 'class-validator';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
