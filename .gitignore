@@ -15,8 +15,11 @@ docker-compose.override.yml
 docs/
 agents/
 .claude/
-.github/
+# .github/ is tracked — GitHub Actions needs workflows in the remote repo
 
 # Markdown files except root README.md
 *.md
 !README.md
+
+# Deploy runbook (local notes, not for the repo)
+DEPLOY.md

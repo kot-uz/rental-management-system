@@ -1,0 +1,75 @@
+# Production deploy — automates the SSH runbook from DEPLOY.md.
+# Builds images on the server (no external registry), restarts only
+# backend + frontend, runs Prisma migrations, then health-checks.
+name: Deploy
+
+on:
+  # Manual run from the Actions tab (recommended while validating).
+  workflow_dispatch:
+  # Auto-deploy after a push/merge to main.
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    # Optional: in GitHub → Settings → Environments → production
+    # add required reviewers for a manual approve gate before SSH runs.
+    environment: production
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Docker builds can take several minutes.
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd /opt/rental
+
+            # Discard accidental package-lock noise from earlier in-container npm installs.
+            git checkout -- apps/frontend/package-lock.json 2>/dev/null || true
+
+            git fetch origin
+            git merge --ff-only origin/main
+
+            # Build WITHOUT the prod overlay — prod sets build: !reset null.
+            docker compose -f docker-compose.yml build backend frontend
+
+            # Restart only app containers; leave postgres/redis/minio/nginx alone.
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d backend frontend
+
+            docker compose exec -T backend npx prisma migrate deploy
+
+            # Wait for Docker healthcheck, then probe app endpoints.
+            for i in $(seq 1 30); do
+              status=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' rental-backend-1 2>/dev/null || echo missing)
+              if [ "$status" = "healthy" ]; then
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "Backend did not become healthy (last status: $status)" >&2
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=80 backend
+                exit 1
+              fi
+              sleep 2
+            done
+
+            docker exec rental-backend-1 wget -qO- http://localhost:3000/api/health/live
+            echo
+            docker exec rental-backend-1 wget -qO- http://localhost:3000/api/health/ready
+            echo
+
+      - name: Check public HTTPS
+        run: |
+          set -euo pipefail
+          code=$(curl -sk -o /dev/null -w "%{http_code}" "https://${{ secrets.SSH_HOST }}/")
+          echo "HTTP $code"
+          test "$code" = "200"
