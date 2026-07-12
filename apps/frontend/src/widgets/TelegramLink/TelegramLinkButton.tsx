@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Box, Button, Chip, CircularProgress, Snackbar, Alert, Typography } from '@mui/material';
-import { Telegram } from '@mui/icons-material';
+import { Loader2, Send } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import type { TelegramLink } from '../../entities/telegram/api/telegramApi';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface Props {
   /** Whether the subject already has a bound chat id. */
@@ -20,7 +23,6 @@ interface Props {
 export function TelegramLinkButton({ linked, requestLink }: Props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
 
   const onClick = async () => {
@@ -31,44 +33,41 @@ export function TelegramLinkButton({ linked, requestLink }: Props) {
         window.open(res.url, '_blank', 'noopener');
         setOpened(true);
       } else {
-        setError(t('telegram.notConfigured'));
+        toast.warning(t('telegram.notConfigured'));
       }
     } catch {
-      setError(t('telegram.linkFailed'));
+      toast.warning(t('telegram.linkFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" gap={1.5} flexWrap="wrap">
-        <Chip
-          icon={<Telegram />}
-          size="small"
-          color={linked ? 'success' : 'default'}
-          label={linked ? t('telegram.linked') : t('telegram.notLinked')}
-        />
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={loading ? <CircularProgress size={16} /> : <Telegram />}
-          onClick={onClick}
-          disabled={loading}
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant={linked ? 'default' : 'secondary'}
+          className={cn(
+            'gap-1',
+            linked &&
+              'border-transparent bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300',
+          )}
         >
+          <Send className="h-3 w-3" />
+          {linked ? t('telegram.linked') : t('telegram.notLinked')}
+        </Badge>
+        <Button size="sm" variant="outline" onClick={onClick} disabled={loading}>
+          {loading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-4 w-4" />
+          )}
           {linked ? t('telegram.relink') : t('telegram.link')}
         </Button>
-      </Box>
+      </div>
       {opened && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-          {t('telegram.openedHint')}
-        </Typography>
+        <p className="mt-1 text-xs text-muted-foreground">{t('telegram.openedHint')}</p>
       )}
-      <Snackbar open={!!error} autoHideDuration={4000} onClose={() => setError(null)}>
-        <Alert severity="warning" onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

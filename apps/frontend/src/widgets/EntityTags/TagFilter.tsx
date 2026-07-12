@@ -1,12 +1,20 @@
 import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem, Box, Chip } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useGetTagsQuery } from '../../entities/tags/api/tagsApi';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   value: string;
   onChange: (tagId: string) => void;
 }
+
+const ALL = '__all__';
 
 /** Dropdown to filter a list by a single tag. Hidden if the org has no tags. */
 export function TagFilter({ value, onChange }: Props) {
@@ -16,25 +24,28 @@ export function TagFilter({ value, onChange }: Props) {
   if (tags.length === 0) return null;
 
   return (
-    <FormControl size="small" sx={{ minWidth: 160 }}>
-      <InputLabel>{t('tags.filterLabel')}</InputLabel>
-      <Select value={value} label={t('tags.filterLabel')} onChange={(e) => onChange(e.target.value)}>
-        <MenuItem value="">{t('common.all')}</MenuItem>
+    <Select value={value || ALL} onValueChange={(v) => onChange(v === ALL ? '' : v)}>
+      <SelectTrigger className="h-9 w-40">
+        <SelectValue placeholder={t('tags.filterLabel')} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{t('common.all')}</SelectItem>
         {tags.map((tag) => (
-          <MenuItem key={tag.id} value={tag.id}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Chip
-                label={tag.name}
-                size="small"
-                sx={{ bgcolor: tag.color ?? '#607d8b', color: '#fff', height: 18 }}
-              />
+          <SelectItem key={tag.id} value={tag.id}>
+            <span className="flex items-center gap-2">
+              <span
+                className="inline-flex h-4 items-center rounded-full px-2 text-[11px] font-medium text-white"
+                style={{ backgroundColor: tag.color ?? '#607d8b' }}
+              >
+                {tag.name}
+              </span>
               {tag.usageCount != null && (
-                <Box component="span" sx={{ color: 'text.secondary', fontSize: 12 }}>({tag.usageCount})</Box>
+                <span className="text-xs text-muted-foreground">({tag.usageCount})</span>
               )}
-            </Box>
-          </MenuItem>
+            </span>
+          </SelectItem>
         ))}
-      </Select>
-    </FormControl>
+      </SelectContent>
+    </Select>
   );
 }

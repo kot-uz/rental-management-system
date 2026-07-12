@@ -1,30 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  Paper,
-  Grid,
-  Chip,
-  CircularProgress,
-  Alert,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Divider,
-} from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import { Loader2, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import {
@@ -35,15 +11,39 @@ import {
 } from '../../entities/leases/api/leasesApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { BackButton, DetailItem, EmptyRow } from '../../shared/ui/DetailBits';
 import { EntityTags } from '../../widgets/EntityTags/EntityTags';
 import { DocumentsSection } from '../../widgets/DocumentsSection/DocumentsSection';
 import { formatMoney, formatDate, formatMonthYear } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export function LeaseDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();
-  const [tab, setTab] = useState(0);
   const [deductOpen, setDeductOpen] = useState(false);
   const [terminateOpen, setTerminateOpen] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
@@ -86,15 +86,13 @@ export function LeaseDetailPage() {
     setTerminateOpen(false);
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" mt={6}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (isLoading) return <PageSpinner />;
   if (error || !lease) {
-    return <Alert severity="error">{t('leases.failedToLoad')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('leases.failedToLoad')}</AlertDescription>
+      </Alert>
+    );
   }
 
   const apartmentLabel = lease.apartment
@@ -102,270 +100,296 @@ export function LeaseDetailPage() {
     : '—';
 
   return (
-    <Box>
-      <Button startIcon={<ArrowBack />} onClick={() => navigate('/leases')} sx={{ mb: 2 }}>
-        {t('common.back')}
-      </Button>
+    <div>
+      <BackButton onClick={() => navigate('/app/leases')} />
 
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h5">{apartmentLabel}</Typography>
-          <Box mt={1}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{apartmentLabel}</h1>
+          <div className="mt-2">
             <StatusBadge status={lease.status} />
-          </Box>
-        </Box>
+          </div>
+        </div>
         {lease.status === 'ACTIVE' && (
           <Can permission="leases:end">
-            <Button color="error" variant="outlined" onClick={() => setTerminateOpen(true)}>
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setTerminateOpen(true)}
+            >
               {t('leases.terminate')}
             </Button>
           </Can>
         )}
-      </Box>
+      </div>
 
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-          <Tab label={t('leases.terms')} />
-          <Tab label={`${t('common.tenant')} (${lease.parties?.length ?? 0})`} />
-          <Tab label={`${t('nav.rent')} (${periods.length})`} />
-          <Tab label={t('leases.deposit')} />
-          <Tab label={t('documents.title')} />
-        </Tabs>
-      </Paper>
+      <Tabs defaultValue="terms">
+        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="terms">{t('leases.terms')}</TabsTrigger>
+          <TabsTrigger value="tenants">{`${t('common.tenant')} (${lease.parties?.length ?? 0})`}</TabsTrigger>
+          <TabsTrigger value="rent">{`${t('nav.rent')} (${periods.length})`}</TabsTrigger>
+          <TabsTrigger value="deposit">{t('leases.deposit')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('documents.title')}</TabsTrigger>
+        </TabsList>
 
-      {tab === 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            <Detail label={t('common.apartment')} value={apartmentLabel} />
-            <Detail label={t('leases.start')} value={formatDate(lease.startDate)} />
-            <Detail label={t('leases.end')} value={formatDate(lease.endDate)} />
-            <Detail label={t('leases.monthlyRent')} value={formatMoney(lease.monthlyRent, currency)} />
-            <Detail label={t('leases.rentDueDay')} value={String(lease.rentDueDay)} />
-            <Detail label={t('leases.depositAmount')} value={formatMoney(lease.depositAmount, currency)} />
-            {lease.terminationNote && (
-              <Detail label={t('leases.terminationNote')} value={lease.terminationNote} full />
-            )}
-          </Grid>
-          <Box mt={3} pt={2} borderTop={1} borderColor="divider">
-            <EntityTags entityType="lease" entityId={id} />
-          </Box>
-        </Paper>
-      )}
+        <TabsContent value="terms">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailItem label={t('common.apartment')} value={apartmentLabel} />
+                <DetailItem label={t('leases.start')} value={formatDate(lease.startDate)} />
+                <DetailItem label={t('leases.end')} value={formatDate(lease.endDate)} />
+                <DetailItem
+                  label={t('leases.monthlyRent')}
+                  value={formatMoney(lease.monthlyRent, currency)}
+                />
+                <DetailItem label={t('leases.rentDueDay')} value={String(lease.rentDueDay)} />
+                <DetailItem
+                  label={t('leases.depositAmount')}
+                  value={formatMoney(lease.depositAmount, currency)}
+                />
+                {lease.terminationNote && (
+                  <DetailItem label={t('leases.terminationNote')} value={lease.terminationNote} full />
+                )}
+              </div>
+              <div className="mt-6 border-t pt-4">
+                <EntityTags entityType="lease" entityId={id} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 1 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.name')}</TableCell>
-                <TableCell>{t('leases.primaryTenant')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(lease.parties ?? []).map((p) => (
-                <TableRow key={p.tenant.id} hover>
-                  <TableCell>
-                    {p.tenant.firstName} {p.tenant.lastName}
-                  </TableCell>
-                  <TableCell>{p.isPrimary ? <Chip size="small" color="primary" label="★" /> : '—'}</TableCell>
-                </TableRow>
-              ))}
-              {(lease.parties?.length ?? 0) === 0 && <EmptyRow colSpan={2} text="—" />}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {tab === 2 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.period')}</TableCell>
-                <TableCell>{t('rent.dueDate')}</TableCell>
-                <TableCell align="right">{t('rent.expected')}</TableCell>
-                <TableCell align="right">{t('rent.paid')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {periods.map((p) => (
-                <TableRow key={p.id} hover>
-                  <TableCell>{formatMonthYear(p.periodYear, p.periodMonth)}</TableCell>
-                  <TableCell>{formatDate(p.dueDate)}</TableCell>
-                  <TableCell align="right">{formatMoney(p.expectedAmount, currency)}</TableCell>
-                  <TableCell align="right">{formatMoney(p.paidAmount, currency)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={p.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {periods.length === 0 && <EmptyRow colSpan={5} text={t('rent.noPeriods')} />}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {tab === 3 && (
-        <Paper sx={{ p: 3 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2} flexWrap="wrap" gap={2}>
-            <Grid container spacing={2} sx={{ flex: 1 }}>
-              <Detail label={t('leases.depositAmount')} value={formatMoney(lease.depositAmount, currency)} />
-              <Detail label={t('leases.depositBalance')} value={formatMoney(lease.depositBalance, currency)} />
-              <Grid item xs={6} sm={4}>
-                <Typography variant="caption" color="text.secondary" display="block">{t('leases.depositStatus')}</Typography>
-                <StatusBadge status={lease.depositStatus} />
-              </Grid>
-              {lease.depositSettledAt && (
-                <>
-                  <Detail label={t('leases.depositReturned')} value={formatMoney(lease.depositReturnedAmount ?? 0, currency)} />
-                  <Detail label={t('leases.depositSettledAt')} value={formatDate(lease.depositSettledAt)} />
-                  {lease.depositSettlementNote && <Detail label={t('common.notes')} value={lease.depositSettlementNote} full />}
-                </>
-              )}
-            </Grid>
-            {!lease.depositSettledAt && (
-              <Can permission="deposits:update">
-                <Button variant="contained" onClick={() => { settleForm.reset({ returnAmount: Number(lease.depositBalance) }); setSettleOpen(true); }}>
-                  {t('leases.settleDeposit')}
-                </Button>
-              </Can>
-            )}
-          </Box>
-          <Divider sx={{ my: 2 }} />
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-            <Typography variant="subtitle1">{t('leases.deductions')}</Typography>
-            <Can permission="deposits:update">
-              <Button size="small" variant="outlined" disabled={!!lease.depositSettledAt} onClick={() => setDeductOpen(true)}>
-                {t('leases.addDeduction')}
-              </Button>
-            </Can>
-          </Box>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
+        <TabsContent value="tenants">
+          <Card>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell>{t('common.date')}</TableCell>
-                  <TableCell>{t('leases.reason')}</TableCell>
-                  <TableCell align="right">{t('common.amount')}</TableCell>
+                  <TableHead>{t('common.name')}</TableHead>
+                  <TableHead>{t('leases.primaryTenant')}</TableHead>
                 </TableRow>
-              </TableHead>
+              </TableHeader>
               <TableBody>
-                {deductions.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell>{formatDate(d.createdAt)}</TableCell>
-                    <TableCell>{d.reason}</TableCell>
-                    <TableCell align="right">{formatMoney(d.amount, currency)}</TableCell>
+                {(lease.parties ?? []).map((p) => (
+                  <TableRow key={p.tenant.id}>
+                    <TableCell>
+                      {p.tenant.firstName} {p.tenant.lastName}
+                    </TableCell>
+                    <TableCell>
+                      {p.isPrimary ? <Star className="h-4 w-4 fill-primary text-primary" /> : '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
-                {deductions.length === 0 && <EmptyRow colSpan={3} text={t('common.noRecords')} />}
+                {(lease.parties?.length ?? 0) === 0 && <EmptyRow colSpan={2} text="—" />}
               </TableBody>
             </Table>
-          </TableContainer>
-        </Paper>
-      )}
+          </Card>
+        </TabsContent>
 
-      {tab === 4 && <DocumentsSection ownerType="lease" ownerId={id} />}
+        <TabsContent value="rent">
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('common.period')}</TableHead>
+                  <TableHead>{t('rent.dueDate')}</TableHead>
+                  <TableHead className="text-right">{t('rent.expected')}</TableHead>
+                  <TableHead className="text-right">{t('rent.paid')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {periods.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>{formatMonthYear(p.periodYear, p.periodMonth)}</TableCell>
+                    <TableCell>{formatDate(p.dueDate)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(p.expectedAmount, currency)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(p.paidAmount, currency)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={p.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {periods.length === 0 && <EmptyRow colSpan={5} text={t('rent.noPeriods')} />}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="deposit">
+          <Card>
+            <CardContent className="p-6">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+                <div className="grid flex-1 gap-4 sm:grid-cols-2">
+                  <DetailItem
+                    label={t('leases.depositAmount')}
+                    value={formatMoney(lease.depositAmount, currency)}
+                  />
+                  <DetailItem
+                    label={t('leases.depositBalance')}
+                    value={formatMoney(lease.depositBalance, currency)}
+                  />
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">{t('leases.depositStatus')}</p>
+                    <StatusBadge status={lease.depositStatus} />
+                  </div>
+                  {lease.depositSettledAt && (
+                    <>
+                      <DetailItem
+                        label={t('leases.depositReturned')}
+                        value={formatMoney(lease.depositReturnedAmount ?? 0, currency)}
+                      />
+                      <DetailItem
+                        label={t('leases.depositSettledAt')}
+                        value={formatDate(lease.depositSettledAt)}
+                      />
+                      {lease.depositSettlementNote && (
+                        <DetailItem label={t('common.notes')} value={lease.depositSettlementNote} full />
+                      )}
+                    </>
+                  )}
+                </div>
+                {!lease.depositSettledAt && (
+                  <Can permission="deposits:update">
+                    <Button
+                      onClick={() => {
+                        settleForm.reset({ returnAmount: Number(lease.depositBalance) });
+                        setSettleOpen(true);
+                      }}
+                    >
+                      {t('leases.settleDeposit')}
+                    </Button>
+                  </Can>
+                )}
+              </div>
+              <Separator className="my-4" />
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="font-medium">{t('leases.deductions')}</h3>
+                <Can permission="deposits:update">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!!lease.depositSettledAt}
+                    onClick={() => setDeductOpen(true)}
+                  >
+                    {t('leases.addDeduction')}
+                  </Button>
+                </Can>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('common.date')}</TableHead>
+                    <TableHead>{t('leases.reason')}</TableHead>
+                    <TableHead className="text-right">{t('common.amount')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deductions.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell>{formatDate(d.createdAt)}</TableCell>
+                      <TableCell>{d.reason}</TableCell>
+                      <TableCell className="text-right">{formatMoney(d.amount, currency)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {deductions.length === 0 && <EmptyRow colSpan={3} text={t('common.noRecords')} />}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <DocumentsSection ownerType="lease" ownerId={id} />
+        </TabsContent>
+      </Tabs>
 
       {/* Add deduction dialog */}
-      <Dialog open={deductOpen} onClose={() => setDeductOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('leases.addDeduction')}</DialogTitle>
-        <Box component="form" onSubmit={deductForm.handleSubmit(onAddDeduction)}>
-          <DialogContent>
-            <TextField
-              {...deductForm.register('amount')}
-              label={t('common.amount')}
-              type="number"
-              fullWidth
-              sx={{ mb: 2 }}
-            />
-            <TextField {...deductForm.register('reason')} label={t('leases.reason')} fullWidth multiline rows={2} />
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setDeductOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={addingDeduction}>
-              {addingDeduction ? <CircularProgress size={20} /> : t('common.save')}
-            </Button>
-          </DialogActions>
-        </Box>
+      <Dialog open={deductOpen} onOpenChange={setDeductOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('leases.addDeduction')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={deductForm.handleSubmit(onAddDeduction)} className="space-y-4">
+            <Field label={t('common.amount')} htmlFor="dd-amount">
+              <Input id="dd-amount" type="number" step="0.01" {...deductForm.register('amount')} />
+            </Field>
+            <Field label={t('leases.reason')} htmlFor="dd-reason">
+              <Textarea id="dd-reason" rows={2} {...deductForm.register('reason')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setDeductOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={addingDeduction}>
+                {addingDeduction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* Settle deposit dialog */}
-      <Dialog open={settleOpen} onClose={() => setSettleOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('leases.settleDeposit')}</DialogTitle>
-        <Box component="form" onSubmit={settleForm.handleSubmit(onSettle)}>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary" mb={2}>
+      <Dialog open={settleOpen} onOpenChange={setSettleOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('leases.settleDeposit')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={settleForm.handleSubmit(onSettle)} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
               {t('leases.settleHint', { balance: formatMoney(lease.depositBalance, currency) })}
-            </Typography>
-            <TextField
-              {...settleForm.register('returnAmount')}
-              label={t('leases.returnAmount')}
-              type="number"
-              fullWidth
-              inputProps={{ min: 0, max: Number(lease.depositBalance), step: '0.01' }}
-              sx={{ mb: 2 }}
-            />
-            <TextField {...settleForm.register('note')} label={t('rent.note')} fullWidth multiline rows={2} />
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setSettleOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={settling}>
-              {settling ? <CircularProgress size={20} /> : t('leases.settleDeposit')}
-            </Button>
-          </DialogActions>
-        </Box>
+            </p>
+            <Field label={t('leases.returnAmount')} htmlFor="st-amount">
+              <Input
+                id="st-amount"
+                type="number"
+                min={0}
+                max={Number(lease.depositBalance)}
+                step="0.01"
+                {...settleForm.register('returnAmount')}
+              />
+            </Field>
+            <Field label={t('rent.note')} htmlFor="st-note">
+              <Textarea id="st-note" rows={2} {...settleForm.register('note')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setSettleOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={settling}>
+                {settling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('leases.settleDeposit')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* Terminate dialog */}
-      <Dialog open={terminateOpen} onClose={() => setTerminateOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('leases.terminate')}</DialogTitle>
-        <Box component="form" onSubmit={terminateForm.handleSubmit(onTerminate)}>
-          <DialogContent>
-            <TextField
-              {...terminateForm.register('terminationNote')}
-              label={t('leases.terminationNote')}
-              fullWidth
-              multiline
-              rows={2}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              {...terminateForm.register('penaltyAmount')}
-              label={t('leases.penaltyAmount')}
-              type="number"
-              fullWidth
-            />
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setTerminateOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" color="error" variant="contained" disabled={terminating}>
-              {terminating ? <CircularProgress size={20} /> : t('leases.terminate')}
-            </Button>
-          </DialogActions>
-        </Box>
+      <Dialog open={terminateOpen} onOpenChange={setTerminateOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('leases.terminate')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={terminateForm.handleSubmit(onTerminate)} className="space-y-4">
+            <Field label={t('leases.terminationNote')} htmlFor="tm-note">
+              <Textarea id="tm-note" rows={2} {...terminateForm.register('terminationNote')} />
+            </Field>
+            <Field label={t('leases.penaltyAmount')} htmlFor="tm-penalty">
+              <Input id="tm-penalty" type="number" step="0.01" {...terminateForm.register('penaltyAmount')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setTerminateOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" variant="destructive" disabled={terminating}>
+                {terminating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('leases.terminate')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
-    </Box>
-  );
-}
-
-function Detail({ label, value, full }: { label: string; value: string; full?: boolean }) {
-  return (
-    <Grid item xs={12} sm={full ? 12 : 6}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography>{value}</Typography>
-    </Grid>
-  );
-}
-
-function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={colSpan} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-        {text}
-      </TableCell>
-    </TableRow>
+    </div>
   );
 }

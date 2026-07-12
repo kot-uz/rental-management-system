@@ -18,23 +18,23 @@ describe('StatusBadge', () => {
     expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
   });
 
-  it('applies the success colour for a positive status', () => {
+  it('applies the success tone for a positive status', () => {
     const { container } = render(<StatusBadge status="PAID" />);
-    expect(container.querySelector('.MuiChip-colorSuccess')).not.toBeNull();
+    expect(container.querySelector('[data-tone="success"]')).not.toBeNull();
   });
 
-  it('applies the error colour for a negative status', () => {
+  it('applies the error tone for a negative status', () => {
     const { container } = render(<StatusBadge status="OVERDUE" />);
-    expect(container.querySelector('.MuiChip-colorError')).not.toBeNull();
+    expect(container.querySelector('[data-tone="error"]')).not.toBeNull();
   });
 
-  it('falls back to the default colour for an unknown status', () => {
+  it('falls back to the default tone for an unknown status', () => {
     const { container } = render(<StatusBadge status="SOMETHING_NEW" />);
-    expect(container.querySelector('.MuiChip-colorDefault')).not.toBeNull();
+    expect(container.querySelector('[data-tone="default"]')).not.toBeNull();
   });
 
-  it('renders a small chip by default', () => {
+  it('renders a small badge by default', () => {
     const { container } = render(<StatusBadge status="ACTIVE" />);
-    expect(container.querySelector('.MuiChip-sizeSmall')).not.toBeNull();
+    expect(container.querySelector('[data-size="small"]')).not.toBeNull();
   });
 });

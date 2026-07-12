@@ -1,27 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  CircularProgress,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  TableContainer,
-  Chip,
-  IconButton,
-} from '@mui/material';
-import { Add, Search, Delete } from '@mui/icons-material';
+import { Loader2, Plus, Search, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,8 +13,30 @@ import {
 import { EntityTags } from '../../widgets/EntityTags/EntityTags';
 import { DocumentsSection } from '../../widgets/DocumentsSection/DocumentsSection';
 import { PhotosSection } from '../../widgets/PhotosSection/PhotosSection';
-import { formatDate } from '../../shared/utils/formatMoney';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -48,6 +48,15 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+
+function DetailItem({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm">{value ?? '—'}</p>
+    </div>
+  );
+}
 
 export function ContractorsPage() {
   const { t } = useTranslation();
@@ -76,223 +85,184 @@ export function ContractorsPage() {
   const contractors = (data?.data ?? []) as Contractor[];
 
   return (
-    <Box>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-        flexWrap="wrap"
-        gap={2}
-      >
-        <Typography variant="h5">{t('contractors.title')}</Typography>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('contractors.title')}</h1>
         <Can permission="contractors:create">
-          <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
             {t('contractors.addContractor')}
           </Button>
         </Can>
-      </Box>
+      </div>
 
-      <TextField
-        placeholder={t('contractors.searchPlaceholder')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        size="small"
-        InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} /> }}
-        sx={{ mb: 3, width: 280 }}
-      />
+      <div className="relative mb-6 w-72">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t('contractors.searchPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-9 pl-8"
+        />
+      </div>
 
-      {isLoading && (
-        <Box display="flex" justifyContent="center" mt={4}>
-          <CircularProgress />
-        </Box>
+      {isLoading && <PageSpinner />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('contractors.failedToLoad')}</AlertDescription>
+        </Alert>
       )}
-      {error && <Alert severity="error">{t('contractors.failedToLoad')}</Alert>}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('common.name')}</TableCell>
-              <TableCell>{t('contractors.specialty')}</TableCell>
-              <TableCell>{t('common.phone')}</TableCell>
-              <TableCell>{t('common.status')}</TableCell>
-              <TableCell align="right">{t('common.action')}</TableCell>
+              <TableHead>{t('common.name')}</TableHead>
+              <TableHead>{t('contractors.specialty')}</TableHead>
+              <TableHead>{t('common.phone')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead className="text-right">{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {contractors.map((c) => (
-              <TableRow key={c.id} hover sx={{ cursor: 'pointer' }}>
-                <TableCell onClick={() => setSelected(c)}>{c.name}</TableCell>
+              <TableRow key={c.id} className="cursor-pointer">
+                <TableCell className="font-medium" onClick={() => setSelected(c)}>
+                  {c.name}
+                </TableCell>
                 <TableCell onClick={() => setSelected(c)}>{c.specialty ?? '—'}</TableCell>
                 <TableCell onClick={() => setSelected(c)}>{c.phone ?? '—'}</TableCell>
                 <TableCell onClick={() => setSelected(c)}>
-                  <Chip
-                    label={c.isActive ? t('contractors.statusActive') : t('contractors.statusInactive')}
-                    color={c.isActive ? 'success' : 'default'}
-                    size="small"
-                  />
+                  <Badge
+                    variant={c.isActive ? 'default' : 'secondary'}
+                    className={
+                      c.isActive
+                        ? 'border-transparent bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300'
+                        : ''
+                    }
+                  >
+                    {c.isActive ? t('contractors.statusActive') : t('contractors.statusInactive')}
+                  </Badge>
                 </TableCell>
-                <TableCell align="right">
+                <TableCell className="text-right">
                   <Can permission="contractors:delete">
-                    <IconButton
-                      size="small"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       onClick={(e) => {
                         e.stopPropagation();
                         void remove(c.id);
                       }}
                     >
-                      <Delete fontSize="small" />
-                    </IconButton>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </Can>
                 </TableCell>
               </TableRow>
             ))}
             {!isLoading && contractors.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                   {t('contractors.noContractors')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={!!selected} onClose={() => setSelected(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('contractors.details')}</DialogTitle>
-        <DialogContent>
+      {/* Details dialog */}
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.details')}</DialogTitle>
+          </DialogHeader>
           {selected && (
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('common.name')}
-                </Typography>
-                <Typography>{selected.name}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('contractors.specialty')}
-                </Typography>
-                <Typography>{selected.specialty ?? '—'}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('common.phone')}
-                </Typography>
-                <Typography>{selected.phone ?? '—'}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('contractors.email')}
-                </Typography>
-                <Typography>{selected.email ?? '—'}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('contractors.telegram')}
-                </Typography>
-                <Typography>{selected.telegram ?? '—'}</Typography>
-              </Grid>
-              {selected.notes && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('common.notes')}
-                  </Typography>
-                  <Typography>{selected.notes}</Typography>
-                </Grid>
-              )}
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('contractors.recentRepairs')}
-                </Typography>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <DetailItem label={t('common.name')} value={selected.name} />
+                <DetailItem label={t('contractors.specialty')} value={selected.specialty} />
+                <DetailItem label={t('common.phone')} value={selected.phone} />
+                <DetailItem label={t('contractors.email')} value={selected.email} />
+                <DetailItem label={t('contractors.telegram')} value={selected.telegram} />
+              </div>
+              {selected.notes && <DetailItem label={t('common.notes')} value={selected.notes} />}
+              <div>
+                <p className="text-xs text-muted-foreground">{t('contractors.recentRepairs')}</p>
                 {selected.repairs && selected.repairs.length > 0 ? (
                   selected.repairs.map((r) => (
-                    <Typography key={r.id} variant="body2">
+                    <p key={r.id} className="text-sm">
                       • {r.title} — {r.status}
-                    </Typography>
+                    </p>
                   ))
                 ) : (
-                  <Typography>—</Typography>
+                  <p className="text-sm">—</p>
                 )}
-              </Grid>
-              <Grid item xs={12}>
-                <Box mb={2}>
-                  <EntityTags entityType="contractor" entityId={selected.id} />
-                </Box>
-                <Box mb={2}>
-                  <PhotosSection
-                    ownerType="contractor"
-                    ownerId={selected.id}
-                    permission="contractors:update"
-                    purpose="contractor-photo"
-                    titleKey="contractors.photos"
-                    addKey="contractors.addPhoto"
-                    emptyKey="contractors.noPhotos"
-                  />
-                </Box>
-                <Typography variant="caption" color="text.secondary">{t('documents.title')}</Typography>
+              </div>
+              <EntityTags entityType="contractor" entityId={selected.id} />
+              <PhotosSection
+                ownerType="contractor"
+                ownerId={selected.id}
+                permission="contractors:update"
+                purpose="contractor-photo"
+                titleKey="contractors.photos"
+                addKey="contractors.addPhoto"
+                emptyKey="contractors.noPhotos"
+              />
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">{t('documents.title')}</p>
                 <DocumentsSection ownerType="contractor" ownerId={selected.id} />
-              </Grid>
-            </Grid>
+              </div>
+            </div>
           )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSelected(null)}>
+              {t('common.back')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setSelected(null)}>{t('common.back')}</Button>
-        </DialogActions>
       </Dialog>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('contractors.addDialog')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  {...register('name')}
-                  label={t('common.name')}
-                  fullWidth
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('phone')} label={t('common.phone')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  {...register('email')}
-                  label={t('contractors.email')}
-                  fullWidth
-                  error={!!errors.email}
-                  helperText={errors.email?.message}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('telegram')} label={t('contractors.telegram')} fullWidth placeholder="@username" />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('specialty')} label={t('contractors.specialty')} fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  {...register('notes')}
-                  label={t('common.notes')}
-                  fullWidth
-                  multiline
-                  rows={2}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={creating}>
-              {creating ? <CircularProgress size={20} /> : t('common.create')}
-            </Button>
-          </DialogActions>
-        </Box>
+      {/* Create dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('contractors.addDialog')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label={t('common.name')} htmlFor="ct-name" error={errors.name?.message}>
+              <Input id="ct-name" {...register('name')} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('common.phone')} htmlFor="ct-phone">
+                <Input id="ct-phone" {...register('phone')} />
+              </Field>
+              <Field label={t('contractors.email')} htmlFor="ct-email" error={errors.email?.message}>
+                <Input id="ct-email" type="email" {...register('email')} />
+              </Field>
+              <Field label={t('contractors.telegram')} htmlFor="ct-telegram">
+                <Input id="ct-telegram" placeholder="@username" {...register('telegram')} />
+              </Field>
+              <Field label={t('contractors.specialty')} htmlFor="ct-specialty">
+                <Input id="ct-specialty" {...register('specialty')} />
+              </Field>
+            </div>
+            <Field label={t('common.notes')} htmlFor="ct-notes">
+              <Textarea id="ct-notes" rows={2} {...register('notes')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.create')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
-    </Box>
+    </div>
   );
 }

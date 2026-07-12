@@ -1,32 +1,6 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  CircularProgress,
-  Alert,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControlLabel,
-  Checkbox,
-  FormGroup,
-  Switch,
-  IconButton,
-  Tooltip,
-  Snackbar,
-} from '@mui/material';
-import { Add, Delete, Send, History } from '@mui/icons-material';
+import { History, Loader2, Plus, Send, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,8 +17,32 @@ import {
 } from '../../entities/webhooks/api/webhooksApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
-import { usePermissions } from '../../shared/hooks/usePermissions';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
 import { formatDate } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const schema = z.object({
   url: z.string().url(),
@@ -58,58 +56,66 @@ function DeliveriesDialog({ endpoint, onClose }: { endpoint: WebhookEndpoint; on
   const { data, isLoading } = useGetWebhookDeliveriesQuery(endpoint.id);
   const deliveries = data?.data ?? [];
   return (
-    <Dialog open onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{t('webhooks.deliveriesTitle')}</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" mb={2} sx={{ wordBreak: 'break-all' }}>
-          {endpoint.url}
-        </Typography>
-        {isLoading && <Box display="flex" justifyContent="center" py={3}><CircularProgress /></Box>}
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.date')}</TableCell>
-                <TableCell>{t('webhooks.event')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-                <TableCell align="right">{t('webhooks.attempts')}</TableCell>
-                <TableCell align="right">HTTP</TableCell>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t('webhooks.deliveriesTitle')}</DialogTitle>
+        </DialogHeader>
+        <p className="break-all text-sm text-muted-foreground">{endpoint.url}</p>
+        {isLoading && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('common.date')}</TableHead>
+              <TableHead>{t('webhooks.event')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead className="text-right">{t('webhooks.attempts')}</TableHead>
+              <TableHead className="text-right">HTTP</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {deliveries.map((d) => (
+              <TableRow key={d.id}>
+                <TableCell>{formatDate(d.createdAt)}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {d.eventType}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={d.status} />
+                </TableCell>
+                <TableCell className="text-right">{d.attempts}</TableCell>
+                <TableCell className="text-right">{d.responseStatus ?? '—'}</TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {deliveries.map((d) => (
-                <TableRow key={d.id} hover>
-                  <TableCell>{formatDate(d.createdAt)}</TableCell>
-                  <TableCell><Chip label={d.eventType} size="small" variant="outlined" /></TableCell>
-                  <TableCell><StatusBadge status={d.status} /></TableCell>
-                  <TableCell align="right">{d.attempts}</TableCell>
-                  <TableCell align="right">{d.responseStatus ?? '—'}</TableCell>
-                </TableRow>
-              ))}
-              {!isLoading && deliveries.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    {t('webhooks.noDeliveries')}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            ))}
+            {!isLoading && deliveries.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  {t('webhooks.noDeliveries')}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{t('common.cancel')}</Button>
-      </DialogActions>
     </Dialog>
   );
 }
 
 export function WebhooksPage() {
   const { t } = useTranslation();
-  const { can } = usePermissions();
   const [open, setOpen] = useState(false);
   const [deliveriesFor, setDeliveriesFor] = useState<WebhookEndpoint | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
 
   const { data, isLoading, error } = useGetWebhooksQuery();
   const [create, { isLoading: creating }] = useCreateWebhookMutation();
@@ -117,7 +123,14 @@ export function WebhooksPage() {
   const [remove] = useDeleteWebhookMutation();
   const [test] = useTestWebhookMutation();
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { url: '', secret: '', events: [] },
   });
@@ -136,12 +149,12 @@ export function WebhooksPage() {
     await create({ ...form, active: true }).unwrap();
     reset();
     setOpen(false);
-    setToast(t('webhooks.created'));
+    toast.success(t('webhooks.created'));
   };
 
   const onTest = async (id: string) => {
     await test(id).unwrap();
-    setToast(t('webhooks.testSent'));
+    toast.success(t('webhooks.testSent'));
   };
 
   const onToggleActive = async (ep: WebhookEndpoint) => {
@@ -153,121 +166,151 @@ export function WebhooksPage() {
   };
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} flexWrap="wrap" gap={2}>
-        <Typography variant="h5">{t('webhooks.title')}</Typography>
+    <div>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('webhooks.title')}</h1>
         <Can permission="webhooks:create">
-          <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
             {t('webhooks.add')}
           </Button>
         </Can>
-      </Box>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        {t('webhooks.subtitle')}
-      </Typography>
+      </div>
+      <p className="mb-6 text-sm text-muted-foreground">{t('webhooks.subtitle')}</p>
 
-      {isLoading && <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>}
-      {error && <Alert severity="error">{t('webhooks.failedToLoad')}</Alert>}
+      {isLoading && <PageSpinner />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('webhooks.failedToLoad')}</AlertDescription>
+        </Alert>
+      )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>URL</TableCell>
-              <TableCell>{t('webhooks.events')}</TableCell>
-              <TableCell>{t('webhooks.active')}</TableCell>
-              <TableCell align="right">{t('common.action')}</TableCell>
+              <TableHead>URL</TableHead>
+              <TableHead>{t('webhooks.events')}</TableHead>
+              <TableHead>{t('webhooks.active')}</TableHead>
+              <TableHead className="text-right">{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {endpoints.map((ep) => (
-              <TableRow key={ep.id} hover>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>{ep.url}</TableCell>
+              <TableRow key={ep.id}>
+                <TableCell className="break-all font-mono text-xs">{ep.url}</TableCell>
                 <TableCell>
-                  <Box display="flex" gap={0.5} flexWrap="wrap">
-                    {ep.events.map((e) => <Chip key={e} label={e} size="small" variant="outlined" />)}
-                  </Box>
+                  <div className="flex flex-wrap gap-1">
+                    {ep.events.map((e) => (
+                      <Badge key={e} variant="outline" className="font-mono text-xs">
+                        {e}
+                      </Badge>
+                    ))}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <Can permission="webhooks:update" fallback={<StatusBadge status={ep.isActive ? 'ACTIVE' : 'ARCHIVED'} />}>
-                    <Switch checked={ep.isActive} onChange={() => onToggleActive(ep)} size="small" />
+                  <Can
+                    permission="webhooks:update"
+                    fallback={<StatusBadge status={ep.isActive ? 'ACTIVE' : 'ARCHIVED'} />}
+                  >
+                    <Switch checked={ep.isActive} onCheckedChange={() => onToggleActive(ep)} />
                   </Can>
                 </TableCell>
-                <TableCell align="right">
-                  <Tooltip title={t('webhooks.viewDeliveries')}>
-                    <IconButton size="small" onClick={() => setDeliveriesFor(ep)}><History fontSize="small" /></IconButton>
-                  </Tooltip>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title={t('webhooks.viewDeliveries')}
+                    onClick={() => setDeliveriesFor(ep)}
+                  >
+                    <History className="h-4 w-4" />
+                  </Button>
                   <Can permission="webhooks:update">
-                    <Tooltip title={t('webhooks.test')}>
-                      <IconButton size="small" onClick={() => onTest(ep.id)}><Send fontSize="small" /></IconButton>
-                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title={t('webhooks.test')}
+                      onClick={() => onTest(ep.id)}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                   </Can>
                   <Can permission="webhooks:delete">
-                    <Tooltip title={t('common.delete')}>
-                      <IconButton size="small" color="error" onClick={() => onDelete(ep.id)}><Delete fontSize="small" /></IconButton>
-                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title={t('common.delete')}
+                      onClick={() => onDelete(ep.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </Can>
                 </TableCell>
               </TableRow>
             ))}
             {!isLoading && endpoints.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                   {t('webhooks.none')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('webhooks.add')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <DialogContent>
-            <TextField
-              {...register('url')}
-              label={t('webhooks.url')}
-              fullWidth
-              sx={{ mb: 2 }}
-              placeholder="https://example.com/hooks/rental"
-              error={!!errors.url}
-              helperText={errors.url?.message}
-            />
-            <TextField
-              {...register('secret')}
-              label={t('webhooks.secret')}
-              fullWidth
-              sx={{ mb: 2 }}
-              error={!!errors.secret}
-              helperText={errors.secret?.message ?? t('webhooks.secretHint')}
-            />
-            <Typography variant="subtitle2" mb={1}>{t('webhooks.events')}</Typography>
-            <FormGroup>
-              {WEBHOOK_EVENTS.map((ev) => (
-                <FormControlLabel
-                  key={ev}
-                  control={<Checkbox size="small" checked={selectedEvents.includes(ev)} onChange={() => toggleEvent(ev)} />}
-                  label={<Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{ev}</Typography>}
-                />
-              ))}
-            </FormGroup>
-            {errors.events && <Typography variant="caption" color="error">{t('webhooks.selectAtLeastOne')}</Typography>}
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={creating}>
-              {creating ? <CircularProgress size={20} /> : t('common.create')}
-            </Button>
-          </DialogActions>
-        </Box>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('webhooks.add')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label={t('webhooks.url')} htmlFor="wh-url" error={errors.url?.message}>
+              <Input id="wh-url" placeholder="https://example.com/hooks/rental" {...register('url')} />
+            </Field>
+            <Field label={t('webhooks.secret')} htmlFor="wh-secret" error={errors.secret?.message}>
+              <Input id="wh-secret" {...register('secret')} />
+              {!errors.secret && (
+                <p className="text-xs text-muted-foreground">{t('webhooks.secretHint')}</p>
+              )}
+            </Field>
+            <div>
+              <p className="mb-2 text-sm font-medium">{t('webhooks.events')}</p>
+              <div className="space-y-2">
+                {WEBHOOK_EVENTS.map((ev) => (
+                  <div key={ev} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`ev-${ev}`}
+                      checked={selectedEvents.includes(ev)}
+                      onCheckedChange={() => toggleEvent(ev)}
+                    />
+                    <Label htmlFor={`ev-${ev}`} className="font-mono text-sm font-normal">
+                      {ev}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {errors.events && (
+                <p className="mt-1 text-xs text-destructive">{t('webhooks.selectAtLeastOne')}</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.create')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {deliveriesFor && <DeliveriesDialog endpoint={deliveriesFor} onClose={() => setDeliveriesFor(null)} />}
-
-      <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert severity="success" onClose={() => setToast(null)}>{toast}</Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

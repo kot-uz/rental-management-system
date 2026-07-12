@@ -4,6 +4,7 @@ import { useAppSelector } from '../../shared/hooks/useAppSelector';
 
 export function ProtectedRoute() {
   const accessToken = useAppSelector((s) => s.auth.accessToken);
-  if (!accessToken) return <Navigate to="/login" replace />;
+  // No token → back to the auth page.
+  if (!accessToken) return <Navigate to="/" replace state={{ auth: 'login' }} />;
   return <Outlet />;
 }

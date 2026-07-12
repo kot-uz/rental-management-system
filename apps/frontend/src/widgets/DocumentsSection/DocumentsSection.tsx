@@ -1,29 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  IconButton,
-  Tooltip,
-  Chip,
-} from '@mui/material';
-import { UploadFile, Delete, Visibility, Warning } from '@mui/icons-material';
+import { AlertTriangle, Eye, Loader2, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useGetDocumentsQuery,
@@ -33,7 +9,34 @@ import {
   DOCUMENT_TYPES,
 } from '../../entities/documents/api/documentsApi';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
 import { formatDate } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   ownerType: string;
@@ -90,115 +93,154 @@ export function DocumentsSection({ ownerType, ownerId }: Props) {
   };
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="flex-end" mb={1}>
+    <div>
+      <div className="mb-2 flex justify-end">
         <Can permission="documents:create">
-          <Button variant="outlined" startIcon={<UploadFile />} onClick={() => setOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
             {t('documents.upload')}
           </Button>
         </Can>
-      </Box>
+      </div>
 
-      {isLoading && <Box display="flex" justifyContent="center" py={3}><CircularProgress /></Box>}
+      {isLoading && (
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('documents.titleField')}</TableCell>
-              <TableCell>{t('documents.type')}</TableCell>
-              <TableCell>{t('documents.expiresAt')}</TableCell>
-              <TableCell>{t('documents.file')}</TableCell>
-              <TableCell align="right">{t('common.action')}</TableCell>
+              <TableHead>{t('documents.titleField')}</TableHead>
+              <TableHead>{t('documents.type')}</TableHead>
+              <TableHead>{t('documents.expiresAt')}</TableHead>
+              <TableHead>{t('documents.file')}</TableHead>
+              <TableHead className="text-right">{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {documents.map((d) => (
-              <TableRow key={d.id} hover>
+              <TableRow key={d.id}>
                 <TableCell>{d.title}</TableCell>
-                <TableCell><Chip label={d.documentType} size="small" variant="outlined" /></TableCell>
+                <TableCell>
+                  <Badge variant="outline">{d.documentType}</Badge>
+                </TableCell>
                 <TableCell>
                   {d.expiresAt ? (
-                    <Box display="flex" alignItems="center" gap={0.5}>
+                    <span className="flex items-center gap-1">
                       {isExpiringSoon(d.expiresAt) && (
-                        <Tooltip title={t('documents.expiringSoon')}>
-                          <Warning color="warning" fontSize="small" />
-                        </Tooltip>
+                        <AlertTriangle
+                          className="h-4 w-4 text-amber-500"
+                          aria-label={t('documents.expiringSoon')}
+                        />
                       )}
                       {formatDate(d.expiresAt)}
-                    </Box>
-                  ) : '—'}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
                 </TableCell>
-                <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{d.file.originalName}</TableCell>
-                <TableCell align="right">
-                  <Tooltip title={t('documents.view')}>
-                    <IconButton size="small" onClick={() => onView(d.id)}><Visibility fontSize="small" /></IconButton>
-                  </Tooltip>
+                <TableCell className="text-xs text-muted-foreground">
+                  {d.file.originalName}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title={t('documents.view')}
+                    onClick={() => onView(d.id)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   <Can permission="documents:delete">
-                    <Tooltip title={t('common.delete')}>
-                      <IconButton size="small" color="error" onClick={() => onDelete(d.id)}><Delete fontSize="small" /></IconButton>
-                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title={t('common.delete')}
+                      onClick={() => onDelete(d.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </Can>
                 </TableCell>
               </TableRow>
             ))}
             {!isLoading && documents.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                   {t('documents.none')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('documents.upload')}</DialogTitle>
-        <DialogContent>
-          <Box mt={1} mb={2}>
-            <Button component="label" variant="outlined" startIcon={<UploadFile />}>
-              {file ? file.name : t('documents.chooseFile')}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('documents.upload')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
               <input
+                id="doc-file-input"
                 type="file"
                 hidden
                 accept="image/*,application/pdf"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => document.getElementById('doc-file-input')?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                <span className="truncate">{file ? file.name : t('documents.chooseFile')}</span>
+              </Button>
+            </div>
+            <Field label={t('documents.titleField')} htmlFor="doc-title">
+              <Input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            </Field>
+            <Field label={t('documents.type')}>
+              <Select value={documentType} onValueChange={setDocumentType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOCUMENT_TYPES.map((dt) => (
+                    <SelectItem key={dt} value={dt}>
+                      {dt}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label={t('documents.expiresAt')} htmlFor="doc-expires">
+              <Input
+                id="doc-expires"
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {t('common.cancel')}
             </Button>
-          </Box>
-          <TextField
-            label={t('documents.titleField')}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            fullWidth
-            required
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>{t('documents.type')}</InputLabel>
-            <Select value={documentType} label={t('documents.type')} onChange={(e) => setDocumentType(e.target.value)}>
-              {DOCUMENT_TYPES.map((dt) => (
-                <MenuItem key={dt} value={dt}>{dt}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label={t('documents.expiresAt')}
-            type="date"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
+            <Button onClick={onUpload} disabled={uploading || !file || !title}>
+              {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('documents.upload')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" onClick={onUpload} disabled={uploading || !file || !title}>
-            {uploading ? <CircularProgress size={20} /> : t('documents.upload')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }

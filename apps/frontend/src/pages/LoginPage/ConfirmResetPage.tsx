@@ -2,10 +2,15 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Box, Button, TextField, Typography, Paper, Alert, CircularProgress } from '@mui/material';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { AlertCircle, Building2, Loader2 } from 'lucide-react';
 import { useResetPasswordMutation } from '../../entities/auth/api/authApi';
+import { Field } from '../../shared/ui/Field';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const makeSchema = (t: (k: string) => string) =>
   z
@@ -36,7 +41,7 @@ export function ConfirmResetPage() {
   const onSubmit = async (data: FormData) => {
     try {
       await resetPassword({ token, newPassword: data.newPassword }).unwrap();
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true, state: { auth: 'login' } });
     } catch {
       // surfaced via `error` below
     }
@@ -48,74 +53,62 @@ export function ConfirmResetPage() {
       : null;
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'background.default',
-        p: 2,
-      }}
-    >
-      <Paper sx={{ p: { xs: 3, sm: 4 }, width: '100%', maxWidth: 400 }}>
-        <Typography variant="h5" fontWeight={700} color="primary" mb={0.5}>
-          {t('auth.newPasswordTitle')}
-        </Typography>
-        <Typography color="text.secondary" mb={3} variant="body2">
-          {t('auth.newPasswordSubtitle')}
-        </Typography>
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm">
+        <CardContent className="p-6 sm:p-8">
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+            <Building2 className="h-6 w-6 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold">{t('auth.newPasswordTitle')}</h1>
+          <p className="mb-6 mt-1 text-sm text-muted-foreground">{t('auth.newPasswordSubtitle')}</p>
 
-        {!token && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {t('auth.resetTokenMissing')}
-          </Alert>
-        )}
-        {apiError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {t('auth.resetTokenInvalid')}
-          </Alert>
-        )}
+          {!token && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{t('auth.resetTokenMissing')}</AlertDescription>
+            </Alert>
+          )}
+          {apiError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{t('auth.resetTokenInvalid')}</AlertDescription>
+            </Alert>
+          )}
 
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-          <TextField
-            {...register('newPassword')}
-            label={t('auth.newPassword')}
-            type="password"
-            fullWidth
-            sx={{ mb: 2 }}
-            error={!!errors.newPassword}
-            helperText={errors.newPassword?.message}
-            autoComplete="new-password"
-          />
-          <TextField
-            {...register('confirm')}
-            label={t('auth.confirmPassword')}
-            type="password"
-            fullWidth
-            sx={{ mb: 3 }}
-            error={!!errors.confirm}
-            helperText={errors.confirm?.message}
-            autoComplete="new-password"
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            size="large"
-            disabled={isLoading || !token}
-            startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : undefined}
-          >
-            {t('auth.setNewPassword')}
-          </Button>
-        </Box>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            <Field label={t('auth.newPassword')} htmlFor="cr-password" error={errors.newPassword?.message}>
+              <Input
+                id="cr-password"
+                type="password"
+                autoComplete="new-password"
+                {...register('newPassword')}
+              />
+            </Field>
+            <Field label={t('auth.confirmPassword')} htmlFor="cr-confirm" error={errors.confirm?.message}>
+              <Input
+                id="cr-confirm"
+                type="password"
+                autoComplete="new-password"
+                {...register('confirm')}
+              />
+            </Field>
+            <Button type="submit" className="w-full" disabled={isLoading || !token}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('auth.setNewPassword')}
+            </Button>
+          </form>
 
-        <Box mt={2} textAlign="center">
-          <Link to="/login" style={{ color: 'inherit', fontSize: 14 }}>
-            {t('auth.backToSignIn')}
-          </Link>
-        </Box>
-      </Paper>
-    </Box>
+          <div className="mt-4 text-center">
+            <Link
+              to="/"
+              state={{ auth: 'login' }}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {t('auth.backToSignIn')}
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

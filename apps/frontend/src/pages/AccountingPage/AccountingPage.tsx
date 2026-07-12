@@ -1,28 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  CircularProgress,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
-} from '@mui/material';
-import { Lock, LockOpen } from '@mui/icons-material';
+import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useGetLocksQuery,
@@ -32,7 +9,35 @@ import {
 } from '../../entities/accounting/api/accountingApi';
 import { Can } from '../../shared/ui/Can';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
 import { formatDate } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
@@ -66,46 +71,50 @@ export function AccountingPage() {
   };
 
   return (
-    <Box maxWidth={760}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1} flexWrap="wrap" gap={2}>
-        <Typography variant="h5">{t('accounting.title')}</Typography>
+    <div className="max-w-3xl">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('accounting.title')}</h1>
         <Can permission="accounting:update">
-          <Button variant="contained" startIcon={<Lock />} onClick={() => setOpen(true)}>
+          <Button onClick={() => setOpen(true)}>
+            <Lock className="mr-2 h-4 w-4" />
             {t('accounting.lockPeriod')}
           </Button>
         </Can>
-      </Box>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        {t('accounting.subtitle')}
-      </Typography>
+      </div>
+      <p className="mb-6 text-sm text-muted-foreground">{t('accounting.subtitle')}</p>
 
-      {isLoading && <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>}
-      {error && <Alert severity="error">{t('accounting.failedToLoad')}</Alert>}
+      {isLoading && <PageSpinner />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('accounting.failedToLoad')}</AlertDescription>
+        </Alert>
+      )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('accounting.period')}</TableCell>
-              <TableCell>{t('common.status')}</TableCell>
-              <TableCell>{t('accounting.lockedAt')}</TableCell>
-              <TableCell>{t('common.notes')}</TableCell>
-              <TableCell align="right">{t('common.action')}</TableCell>
+              <TableHead>{t('accounting.period')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead>{t('accounting.lockedAt')}</TableHead>
+              <TableHead>{t('common.notes')}</TableHead>
+              <TableHead className="text-right">{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {periods.map((p) => (
-              <TableRow key={p.id} hover>
-                <TableCell sx={{ fontWeight: 600 }}>{p.yearMonth}</TableCell>
+              <TableRow key={p.id}>
+                <TableCell className="font-semibold">{p.yearMonth}</TableCell>
                 <TableCell>
                   <StatusBadge status={isActive(p) ? 'LOCKED' : 'UNLOCKED'} />
                 </TableCell>
                 <TableCell>{formatDate(p.lockedAt)}</TableCell>
-                <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>{p.note ?? '—'}</TableCell>
-                <TableCell align="right">
+                <TableCell className="text-sm text-muted-foreground">{p.note ?? '—'}</TableCell>
+                <TableCell className="text-right">
                   {isActive(p) && (
                     <Can permission="accounting:update">
-                      <Button size="small" startIcon={<LockOpen />} onClick={() => onUnlock(p)}>
+                      <Button size="sm" variant="ghost" onClick={() => onUnlock(p)}>
+                        <LockOpen className="mr-2 h-4 w-4" />
                         {t('accounting.unlock')}
                       </Button>
                     </Can>
@@ -115,44 +124,67 @@ export function AccountingPage() {
             ))}
             {!isLoading && periods.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                   {t('accounting.none')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('accounting.lockPeriod')}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2} mt={1}>
-            {t('accounting.lockHint')}
-          </Typography>
-          <Box display="flex" gap={2} mb={2}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('common.year')}</InputLabel>
-              <Select value={year} label={t('common.year')} onChange={(e) => setYear(Number(e.target.value))}>
-                {years.map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('common.month')}</InputLabel>
-              <Select value={month} label={t('common.month')} onChange={(e) => setMonth(e.target.value)}>
-                {MONTHS.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Box>
-          <TextField label={t('common.notes')} value={note} onChange={(e) => setNote(e.target.value)} fullWidth multiline rows={2} />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('accounting.lockPeriod')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t('accounting.lockHint')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('common.year')}>
+                <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('common.month')}>
+                <Select value={month} onValueChange={setMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label={t('common.notes')} htmlFor="acc-note">
+              <Textarea id="acc-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={onLock} disabled={locking}>
+              {locking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('accounting.lockPeriod')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" onClick={onLock} disabled={locking}>
-            {locking ? <CircularProgress size={20} /> : t('accounting.lockPeriod')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }

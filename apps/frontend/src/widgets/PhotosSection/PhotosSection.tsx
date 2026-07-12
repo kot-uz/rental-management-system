@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Box, Button, CircularProgress, IconButton, Typography } from '@mui/material';
-import { AddPhotoAlternate, Delete } from '@mui/icons-material';
+import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useGetFilesByOwnerQuery,
@@ -12,6 +11,7 @@ import {
 } from '../../entities/files/api/filesApi';
 import { Can } from '../../shared/ui/Can';
 import { ImageViewer, ViewerImage } from '../../shared/ui/ImageViewer';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   ownerType: string;
@@ -87,46 +87,38 @@ export function PhotosSection({
   };
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="subtitle1">{t(titleKey)}</Typography>
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-medium">{t(titleKey)}</h3>
         <Can permission={permission}>
           <Button
-            variant="outlined"
-            startIcon={<AddPhotoAlternate />}
+            variant="outline"
+            size="sm"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? <CircularProgress size={20} /> : t(addKey)}
+            {uploading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ImagePlus className="mr-2 h-4 w-4" />
+            )}
+            {t(addKey)}
           </Button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={onFiles}
-          />
+          <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={onFiles} />
         </Can>
-      </Box>
+      </div>
 
       {isLoading && (
-        <Box display="flex" justifyContent="center" py={3}>
-          <CircularProgress />
-        </Box>
+        <div className="flex justify-center py-6">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
       )}
 
       {!isLoading && photos.length === 0 && (
-        <Typography color="text.secondary" sx={{ py: 2 }}>
-          {t(emptyKey)}
-        </Typography>
+        <p className="py-3 text-sm text-muted-foreground">{t(emptyKey)}</p>
       )}
 
-      <Box
-        display="grid"
-        gridTemplateColumns="repeat(auto-fill, minmax(140px, 1fr))"
-        gap={2}
-      >
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
         {photos.map((p, i) => (
           <PhotoThumb
             key={p.id}
@@ -136,7 +128,7 @@ export function PhotosSection({
             onDelete={() => remove(p.id)}
           />
         ))}
-      </Box>
+      </div>
 
       <ImageViewer
         images={viewerImages}
@@ -144,7 +136,7 @@ export function PhotosSection({
         open={viewerIndex !== null}
         onClose={() => setViewerIndex(null)}
       />
-    </Box>
+    </div>
   );
 }
 
@@ -163,44 +155,29 @@ function PhotoThumb({
   const thumbUrl = data?.data?.url ?? null;
 
   return (
-    <Box
-      sx={{
-        position: 'relative',
-        aspectRatio: '1 / 1',
-        borderRadius: 1,
-        overflow: 'hidden',
-        bgcolor: 'grey.100',
-      }}
-    >
+    <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
       {thumbUrl ? (
-        <Box
-          component="img"
+        <img
           src={thumbUrl}
           alt={file.originalName}
           onClick={onOpen}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer', display: 'block' }}
+          className="block h-full w-full cursor-pointer object-cover"
         />
       ) : (
-        <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-          <CircularProgress size={22} />
-        </Box>
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       )}
       <Can permission={permission}>
-        <IconButton
-          size="small"
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onDelete}
-          sx={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            bgcolor: 'rgba(0,0,0,0.5)',
-            color: '#fff',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-          }}
+          className="absolute right-1 top-1 h-7 w-7 bg-black/50 text-white hover:bg-black/70 hover:text-white"
         >
-          <Delete fontSize="small" />
-        </IconButton>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       </Can>
-    </Box>
+    </div>
   );
 }

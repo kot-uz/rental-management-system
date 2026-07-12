@@ -1,32 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  Paper,
-  Grid,
-  CircularProgress,
-  Alert,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-} from '@mui/material';
-import { ArrowBack, Edit, Delete } from '@mui/icons-material';
+import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import {
@@ -39,10 +13,41 @@ import { useGetRepairsQuery } from '../../entities/repairs/api/repairsApi';
 import { useGetUtilitiesQuery } from '../../entities/utilities/api/utilitiesApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { BackButton, ConfirmDialog, DetailItem, EmptyRow } from '../../shared/ui/DetailBits';
 import { DocumentsSection } from '../../widgets/DocumentsSection/DocumentsSection';
 import { PhotosSection } from '../../widgets/PhotosSection/PhotosSection';
 import { EntityTags } from '../../widgets/EntityTags/EntityTags';
 import { formatMoney, formatDate, formatMonthYear } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type EditForm = {
   address: string;
@@ -58,7 +63,6 @@ export function ApartmentDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();
-  const [tab, setTab] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -69,7 +73,7 @@ export function ApartmentDetailPage() {
   const [updateApartment, { isLoading: saving }] = useUpdateApartmentMutation();
   const [deleteApartment] = useDeleteApartmentMutation();
 
-  const { register, handleSubmit, reset } = useForm<EditForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<EditForm>();
 
   const apt = data?.data;
   const leases = leasesData?.data ?? [];
@@ -107,263 +111,269 @@ export function ApartmentDetailPage() {
   const onDelete = async () => {
     await deleteApartment(id);
     setConfirmOpen(false);
-    navigate('/apartments');
+    navigate('/app/apartments');
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" mt={6}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (isLoading) return <PageSpinner />;
   if (error || !apt) {
-    return <Alert severity="error">{t('apartments.failedToLoad')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('apartments.failedToLoad')}</AlertDescription>
+      </Alert>
+    );
   }
 
   return (
-    <Box>
-      <Button startIcon={<ArrowBack />} onClick={() => navigate('/apartments')} sx={{ mb: 2 }}>
-        {t('common.back')}
-      </Button>
+    <div>
+      <BackButton onClick={() => navigate('/app/apartments')} />
 
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
             {apt.address}
             {apt.unitNumber ? ` · ${apt.unitNumber}` : ''}
-          </Typography>
-          <Box mt={1}>
+          </h1>
+          <div className="mt-2">
             <StatusBadge status={apt.status} />
-          </Box>
-        </Box>
-        <Box display="flex" gap={1}>
+          </div>
+        </div>
+        <div className="flex gap-2">
           <Can permission="apartments:update">
-            <Button variant="outlined" startIcon={<Edit />} onClick={openEdit}>
+            <Button variant="outline" onClick={openEdit}>
+              <Pencil className="mr-2 h-4 w-4" />
               {t('common.edit')}
             </Button>
           </Can>
           <Can permission="apartments:delete">
-            <Button color="error" variant="outlined" startIcon={<Delete />} onClick={() => setConfirmOpen(true)}>
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
               {t('common.delete')}
             </Button>
           </Can>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-          <Tab label={t('common.overview')} />
-          <Tab label={`${t('nav.leases')} (${leases.length})`} />
-          <Tab label={`${t('nav.repairs')} (${repairs.length})`} />
-          <Tab label={`${t('nav.utilities')} (${utilities.length})`} />
-          <Tab label={t('apartments.photos')} />
-          <Tab label={t('documents.title')} />
-        </Tabs>
-      </Paper>
+      <Tabs defaultValue="overview">
+        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="overview">{t('common.overview')}</TabsTrigger>
+          <TabsTrigger value="leases">{`${t('nav.leases')} (${leases.length})`}</TabsTrigger>
+          <TabsTrigger value="repairs">{`${t('nav.repairs')} (${repairs.length})`}</TabsTrigger>
+          <TabsTrigger value="utilities">{`${t('nav.utilities')} (${utilities.length})`}</TabsTrigger>
+          <TabsTrigger value="photos">{t('apartments.photos')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('documents.title')}</TabsTrigger>
+        </TabsList>
 
-      {tab === 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            <Detail label={t('common.address')} value={`${apt.address}${apt.unitNumber ? ` · ${apt.unitNumber}` : ''}`} />
-            {apt.floor != null && <Detail label={t('apartments.floor')} value={String(apt.floor)} />}
-            {apt.rooms != null && <Detail label={t('apartments.rooms')} value={String(apt.rooms)} />}
-            {apt.areaSqm != null && <Detail label={t('apartments.areaSqm')} value={`${apt.areaSqm} m²`} />}
-            {apt.notes && <Detail label={t('common.notes')} value={apt.notes} full />}
-          </Grid>
-          <Box mt={3} pt={2} borderTop={1} borderColor="divider">
-            <EntityTags entityType="apartment" entityId={id} />
-          </Box>
-        </Paper>
-      )}
+        <TabsContent value="overview">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailItem
+                  label={t('common.address')}
+                  value={`${apt.address}${apt.unitNumber ? ` · ${apt.unitNumber}` : ''}`}
+                />
+                {apt.floor != null && <DetailItem label={t('apartments.floor')} value={String(apt.floor)} />}
+                {apt.rooms != null && <DetailItem label={t('apartments.rooms')} value={String(apt.rooms)} />}
+                {apt.areaSqm != null && (
+                  <DetailItem label={t('apartments.areaSqm')} value={`${apt.areaSqm} m²`} />
+                )}
+                {apt.notes && <DetailItem label={t('common.notes')} value={apt.notes} full />}
+              </div>
+              <div className="mt-6 border-t pt-4">
+                <EntityTags entityType="apartment" entityId={id} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 1 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.tenant')}</TableCell>
-                <TableCell>{t('leases.start')}</TableCell>
-                <TableCell>{t('leases.end')}</TableCell>
-                <TableCell align="right">{t('leases.monthlyRent')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {leases.map((l) => (
-                <TableRow key={l.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/leases/${l.id}`)}>
-                  <TableCell>
-                    {l.parties?.find((p) => p.isPrimary)?.tenant
-                      ? `${l.parties.find((p) => p.isPrimary)!.tenant.firstName} ${l.parties.find((p) => p.isPrimary)!.tenant.lastName}`
-                      : '—'}
-                  </TableCell>
-                  <TableCell>{formatDate(l.startDate)}</TableCell>
-                  <TableCell>{formatDate(l.endDate)}</TableCell>
-                  <TableCell align="right">{formatMoney(l.monthlyRent, l.currency)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={l.status} />
-                  </TableCell>
+        <TabsContent value="leases">
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('common.tenant')}</TableHead>
+                  <TableHead>{t('leases.start')}</TableHead>
+                  <TableHead>{t('leases.end')}</TableHead>
+                  <TableHead className="text-right">{t('leases.monthlyRent')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
                 </TableRow>
-              ))}
-              {leases.length === 0 && <EmptyRow colSpan={5} text={t('leases.noLeases')} />}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              </TableHeader>
+              <TableBody>
+                {leases.map((l) => (
+                  <TableRow
+                    key={l.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/leases/${l.id}`)}
+                  >
+                    <TableCell>
+                      {l.parties?.find((p) => p.isPrimary)?.tenant
+                        ? `${l.parties.find((p) => p.isPrimary)!.tenant.firstName} ${l.parties.find((p) => p.isPrimary)!.tenant.lastName}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell>{formatDate(l.startDate)}</TableCell>
+                    <TableCell>{formatDate(l.endDate)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(l.monthlyRent, l.currency)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={l.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {leases.length === 0 && <EmptyRow colSpan={5} text={t('leases.noLeases')} />}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
 
-      {tab === 2 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.description')}</TableCell>
-                <TableCell>{t('repairs.severity')}</TableCell>
-                <TableCell align="right">{t('repairs.costActual')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-                <TableCell>{t('common.date')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {repairs.map((r) => (
-                <TableRow key={r.id} hover>
-                  <TableCell>{r.title}</TableCell>
-                  <TableCell>{r.severity}</TableCell>
-                  <TableCell align="right">{r.costActual != null ? formatMoney(r.costActual) : '—'}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={r.status} />
-                  </TableCell>
-                  <TableCell>{formatDate(r.createdAt)}</TableCell>
+        <TabsContent value="repairs">
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('common.description')}</TableHead>
+                  <TableHead>{t('repairs.severity')}</TableHead>
+                  <TableHead className="text-right">{t('repairs.costActual')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead>{t('common.date')}</TableHead>
                 </TableRow>
-              ))}
-              {repairs.length === 0 && <EmptyRow colSpan={5} text={t('repairs.noRepairs')} />}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              </TableHeader>
+              <TableBody>
+                {repairs.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.title}</TableCell>
+                    <TableCell>{r.severity}</TableCell>
+                    <TableCell className="text-right">
+                      {r.costActual != null ? formatMoney(r.costActual) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={r.status} />
+                    </TableCell>
+                    <TableCell>{formatDate(r.createdAt)}</TableCell>
+                  </TableRow>
+                ))}
+                {repairs.length === 0 && <EmptyRow colSpan={5} text={t('repairs.noRepairs')} />}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
 
-      {tab === 3 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.type')}</TableCell>
-                <TableCell>{t('common.period')}</TableCell>
-                <TableCell align="right">{t('common.amount')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {utilities.map((u) => (
-                <TableRow key={u.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/utilities/${u.id}`)}>
-                  <TableCell>{u.type}</TableCell>
-                  <TableCell>{formatMonthYear(u.periodYear, u.periodMonth)}</TableCell>
-                  <TableCell align="right">{formatMoney(u.amount)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={u.status} />
-                  </TableCell>
+        <TabsContent value="utilities">
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('common.type')}</TableHead>
+                  <TableHead>{t('common.period')}</TableHead>
+                  <TableHead className="text-right">{t('common.amount')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
                 </TableRow>
-              ))}
-              {utilities.length === 0 && <EmptyRow colSpan={4} text={t('utilities.noUtilities')} />}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              </TableHeader>
+              <TableBody>
+                {utilities.map((u) => (
+                  <TableRow
+                    key={u.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/utilities/${u.id}`)}
+                  >
+                    <TableCell>{u.type}</TableCell>
+                    <TableCell>{formatMonthYear(u.periodYear, u.periodMonth)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(u.amount)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={u.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {utilities.length === 0 && <EmptyRow colSpan={4} text={t('utilities.noUtilities')} />}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
 
-      {tab === 4 && (
-        <Paper sx={{ p: 3 }}>
-          <PhotosSection
-            ownerType="apartment"
-            ownerId={id}
-            permission="apartments:update"
-            purpose="apartment-photo"
-            titleKey="apartments.photos"
-            addKey="apartments.addPhoto"
-            emptyKey="apartments.noPhotos"
-          />
-        </Paper>
-      )}
+        <TabsContent value="photos">
+          <Card>
+            <CardContent className="p-6">
+              <PhotosSection
+                ownerType="apartment"
+                ownerId={id}
+                permission="apartments:update"
+                purpose="apartment-photo"
+                titleKey="apartments.photos"
+                addKey="apartments.addPhoto"
+                emptyKey="apartments.noPhotos"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 5 && <DocumentsSection ownerType="apartment" ownerId={id} />}
+        <TabsContent value="documents">
+          <DocumentsSection ownerType="apartment" ownerId={id} />
+        </TabsContent>
+      </Tabs>
 
       {/* Edit dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('common.edit')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSave)}>
-          <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField {...register('address')} label={t('common.address')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('unitNumber')} label={t('apartments.unitNumber')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>{t('common.status')}</InputLabel>
-                  <Select {...register('status')} label={t('common.status')} defaultValue={apt.status}>
-                    <MenuItem value="VACANT">{t('apartments.statusVacant')}</MenuItem>
-                    <MenuItem value="OCCUPIED">{t('apartments.statusOccupied')}</MenuItem>
-                    <MenuItem value="ARCHIVED">{t('apartments.statusArchived')}</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={4}>
-                <TextField {...register('floor')} label={t('apartments.floor')} type="number" fullWidth />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField {...register('rooms')} label={t('apartments.rooms')} type="number" fullWidth />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField {...register('areaSqm')} label={t('apartments.areaSqm')} type="number" fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('notes')} label={t('common.notes')} fullWidth multiline rows={2} />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setEditOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={saving}>
-              {saving ? <CircularProgress size={20} /> : t('common.save')}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-
-      {/* Delete confirm */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>{t('common.delete')}</DialogTitle>
-        <DialogContent>
-          <Typography>{t('common.deleteConfirm')}</Typography>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('common.edit')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+            <Field label={t('common.address')} htmlFor="ed-address">
+              <Input id="ed-address" {...register('address')} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('apartments.unitNumber')} htmlFor="ed-unit">
+                <Input id="ed-unit" {...register('unitNumber')} />
+              </Field>
+              <Field label={t('common.status')}>
+                <Select value={watch('status')} onValueChange={(v) => setValue('status', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VACANT">{t('apartments.statusVacant')}</SelectItem>
+                    <SelectItem value="OCCUPIED">{t('apartments.statusOccupied')}</SelectItem>
+                    <SelectItem value="ARCHIVED">{t('apartments.statusArchived')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label={t('apartments.floor')} htmlFor="ed-floor">
+                <Input id="ed-floor" type="number" {...register('floor')} />
+              </Field>
+              <Field label={t('apartments.rooms')} htmlFor="ed-rooms">
+                <Input id="ed-rooms" type="number" {...register('rooms')} />
+              </Field>
+              <Field label={t('apartments.areaSqm')} htmlFor="ed-area">
+                <Input id="ed-area" type="number" {...register('areaSqm')} />
+              </Field>
+            </div>
+            <Field label={t('common.notes')} htmlFor="ed-notes">
+              <Textarea id="ed-notes" rows={2} {...register('notes')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
-          <Button color="error" variant="contained" onClick={onDelete}>
-            {t('common.delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
-  );
-}
 
-function Detail({ label, value, full }: { label: string; value: string; full?: boolean }) {
-  return (
-    <Grid item xs={12} sm={full ? 12 : 6}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography>{value}</Typography>
-    </Grid>
-  );
-}
-
-function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
-  return (
-    <TableRow>
-      <TableCell colSpan={colSpan} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-        {text}
-      </TableCell>
-    </TableRow>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('common.delete')}
+        description={t('common.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        onConfirm={onDelete}
+      />
+    </div>
   );
 }

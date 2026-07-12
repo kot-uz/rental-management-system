@@ -1,4 +1,27 @@
 {
+  "landing": {
+    "hero": {
+      "badge": "Property management, simplified",
+      "title": "All your rentals in one place",
+      "subtitle": "Apartments, tenants, leases, payments, utilities and repairs — with realtime notifications, Telegram alerts and a full audit trail.",
+      "cta": "Open the app",
+      "secondaryCta": "Explore features",
+      "demoHint": "Demo access: owner@demo.com / password123"
+    },
+    "features": {
+      "title": "Everything you need to manage rentals",
+      "subtitle": "From the first viewing to the final invoice.",
+      "apartments": { "title": "Apartments", "desc": "Every unit with details, photos and documents in one card." },
+      "tenants": { "title": "Tenants", "desc": "Tenant profiles with contacts, payment history and linked leases." },
+      "leases": { "title": "Leases", "desc": "Contracts, deposits and terms — from signing to termination." },
+      "payments": { "title": "Rent & payments", "desc": "Record payments, track debts and see who is overdue at a glance." },
+      "utilities": { "title": "Utilities", "desc": "Meter readings and bills per apartment, settled in one click." },
+      "repairs": { "title": "Repairs", "desc": "Requests with priorities, contractors and cost tracking." },
+      "accounting": { "title": "Accounting periods", "desc": "Lock closed months so past payments can't be changed." },
+      "notifications": { "title": "Realtime notifications", "desc": "In-app and Telegram alerts the moment something happens." }
+    },
+    "footer": { "tagline": "Rental management system" }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "apartments": "Apartments",

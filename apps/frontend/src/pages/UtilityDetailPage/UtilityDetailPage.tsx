@@ -1,25 +1,19 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Grid,
-  CircularProgress,
-  Alert,
-  Divider,
-  IconButton,
-  Tooltip,
-  Skeleton,
-} from '@mui/material';
-import { ArrowBack, OpenInNew, BrokenImage } from '@mui/icons-material';
+import { ExternalLink, ImageOff, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useGetUtilityByIdQuery, useMarkUtilityPaidMutation } from '../../entities/utilities/api/utilitiesApi';
 import { useGetFilesByOwnerQuery, useLazyGetFileUrlQuery } from '../../entities/files/api/filesApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { ImageViewer, ViewerImage } from '../../shared/ui/ImageViewer';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { BackButton } from '../../shared/ui/DetailBits';
 import { formatMoney, formatMonthYear } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function ReceiptThumbnail({
   fileId,
@@ -44,69 +38,40 @@ function ReceiptThumbnail({
   const isPdf = mimeType === 'application/pdf';
 
   return (
-    <Box
+    <button
+      type="button"
       onClick={onOpen}
-      sx={{
-        width: 120,
-        height: 120,
-        borderRadius: 2,
-        overflow: 'hidden',
-        border: '2px solid',
-        borderColor: 'divider',
-        cursor: 'pointer',
-        position: 'relative',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'grey.100',
-        '&:hover': { borderColor: 'primary.main', '& .overlay': { opacity: 1 } },
-      }}
+      className="group relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 bg-muted transition-colors hover:border-primary"
     >
-      {isLoading && <CircularProgress size={24} />}
+      {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
 
       {!isLoading && url && !isPdf && (
         <>
-          {!loaded && !errored && <Skeleton variant="rectangular" width={120} height={120} sx={{ position: 'absolute' }} />}
-          {errored && <BrokenImage color="disabled" />}
-          <Box
-            component="img"
+          {!loaded && !errored && <Skeleton className="absolute inset-0" />}
+          {errored && <ImageOff className="h-5 w-5 text-muted-foreground" />}
+          <img
             src={url}
             alt={name}
             onLoad={() => setLoaded(true)}
             onError={() => setErrored(true)}
-            sx={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: loaded ? 'block' : 'none',
-            }}
+            className={loaded ? 'block h-full w-full object-cover' : 'hidden'}
           />
         </>
       )}
 
       {!isLoading && (isPdf || !url) && (
-        <Box textAlign="center" p={1}>
-          <OpenInNew color="action" />
-          <Typography variant="caption" display="block" noWrap title={name} mt={0.5}>
+        <span className="p-2 text-center">
+          <ExternalLink className="mx-auto h-4 w-4 text-muted-foreground" />
+          <span className="mt-1 block max-w-24 truncate text-xs" title={name}>
             {name}
-          </Typography>
-        </Box>
+          </span>
+        </span>
       )}
 
-      <Box
-        className="overlay"
-        sx={{
-          position: 'absolute', inset: 0,
-          bgcolor: 'rgba(0,0,0,0.35)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          opacity: 0,
-          transition: 'opacity 0.15s',
-        }}
-      >
-        <OpenInNew sx={{ color: 'white' }} />
-      </Box>
-    </Box>
+      <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">
+        <ExternalLink className="h-5 w-5 text-white" />
+      </span>
+    </button>
   );
 }
 
@@ -150,16 +115,14 @@ export function UtilityDetailPage() {
     if (url) window.open(url, '_blank');
   };
 
-  if (isLoading) {
-    return (
-      <Box>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (isLoading) return <PageSpinner />;
 
   if (error || !record) {
-    return <Alert severity="error">{t('utilities.failedToLoad')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('utilities.failedToLoad')}</AlertDescription>
+      </Alert>
+    );
   }
 
   const aptLabel = record.apartment
@@ -167,30 +130,23 @@ export function UtilityDetailPage() {
     : record.apartmentId;
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" gap={1} mb={3}>
-        <Tooltip title={t('common.back')}>
-          <IconButton onClick={() => navigate('/utilities')} size="small">
-            <ArrowBack />
-          </IconButton>
-        </Tooltip>
-        <Typography variant="h5">
-          {t('utilities.detailTitle')}
-        </Typography>
-      </Box>
+    <div>
+      <BackButton onClick={() => navigate('/app/utilities')} />
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">{t('utilities.detailTitle')}</h1>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              {t('utilities.detailInfo')}
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm font-medium text-muted-foreground">{t('utilities.detailInfo')}</p>
+            <Separator className="my-3" />
 
-            <Box display="flex" flexDirection="column" gap={1.5}>
+            <div className="flex flex-col gap-3">
               <InfoRow label={t('common.apartment')} value={aptLabel} />
               <InfoRow label={t('common.type')} value={record.type} />
-              <InfoRow label={t('common.period')} value={formatMonthYear(record.periodYear, record.periodMonth)} />
+              <InfoRow
+                label={t('common.period')}
+                value={formatMonthYear(record.periodYear, record.periodMonth)}
+              />
               <InfoRow label={t('common.amount')} value={formatMoney(record.amount)} />
               {record.readingFrom != null && record.readingTo != null && (
                 <InfoRow
@@ -199,44 +155,41 @@ export function UtilityDetailPage() {
                 />
               )}
               {record.notes && <InfoRow label={t('common.notes')} value={record.notes} />}
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+              <div className="flex items-center gap-2">
+                <span className="min-w-32 shrink-0 text-sm text-muted-foreground">
                   {t('common.status')}
-                </Typography>
+                </span>
                 <StatusBadge status={record.status} />
-              </Box>
-            </Box>
+              </div>
+            </div>
 
             {record.status === 'UNPAID' && (
               <Button
-                variant="contained"
-                color="success"
-                sx={{ mt: 3 }}
+                className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700"
                 disabled={paying}
-                onClick={() => void markPaid(record.id).then(() => navigate('/utilities'))}
+                onClick={() => void markPaid(record.id).then(() => navigate('/app/utilities'))}
               >
-                {paying ? <CircularProgress size={20} /> : t('utilities.markPaid')}
+                {paying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('utilities.markPaid')}
               </Button>
             )}
-          </Paper>
-        </Grid>
+          </CardContent>
+        </Card>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, minHeight: 200 }}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        <Card>
+          <CardContent className="min-h-52 p-6">
+            <p className="text-sm font-medium text-muted-foreground">
               {t('utilities.receiptsSection')}
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+            </p>
+            <Separator className="my-3" />
 
-            {filesLoading && <CircularProgress size={24} />}
+            {filesLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
 
             {!filesLoading && files.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {t('utilities.noReceipts')}
-              </Typography>
+              <p className="text-sm text-muted-foreground">{t('utilities.noReceipts')}</p>
             )}
 
-            <Box display="flex" flexWrap="wrap" gap={1.5}>
+            <div className="flex flex-wrap gap-3">
               {files.map((f) => {
                 const isPdf = f.mimeType === 'application/pdf';
                 const imgIdx = imageFiles.indexOf(f);
@@ -246,14 +199,14 @@ export function UtilityDetailPage() {
                     fileId={f.id}
                     name={f.originalName}
                     mimeType={f.mimeType}
-                    onOpen={() => isPdf ? void openPdf(f.id) : void openViewer(imgIdx)}
+                    onOpen={() => (isPdf ? void openPdf(f.id) : void openViewer(imgIdx))}
                   />
                 );
               })}
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <ImageViewer
         images={resolvedUrls}
@@ -261,17 +214,15 @@ export function UtilityDetailPage() {
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
       />
-    </Box>
+    </div>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <Box display="flex" alignItems="flex-start" gap={1}>
-      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120, flexShrink: 0 }}>
-        {label}
-      </Typography>
-      <Typography variant="body2">{value}</Typography>
-    </Box>
+    <div className="flex items-start gap-2">
+      <span className="min-w-32 shrink-0 text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm">{value}</span>
+    </div>
   );
 }

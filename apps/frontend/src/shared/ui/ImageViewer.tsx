@@ -1,21 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
-  Box,
-  IconButton,
-  Dialog,
-  Typography,
-  Tooltip,
-} from '@mui/material';
-import {
-  Close,
+  X,
   ZoomIn,
   ZoomOut,
-  RotateLeft,
-  RotateRight,
-  NavigateBefore,
-  NavigateNext,
-  ZoomOutMap,
-} from '@mui/icons-material';
+  RotateCcw,
+  RotateCw,
+  ChevronLeft,
+  ChevronRight,
+  Maximize,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface ViewerImage {
   url: string;
@@ -55,7 +51,10 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: Props) 
     setRotation(0);
   }, []);
 
-  const prev = useCallback(() => goTo((index - 1 + images.length) % images.length), [index, images.length, goTo]);
+  const prev = useCallback(
+    () => goTo((index - 1 + images.length) % images.length),
+    [index, images.length, goTo],
+  );
   const next = useCallback(() => goTo((index + 1) % images.length), [index, images.length, goTo]);
 
   useEffect(() => {
@@ -74,154 +73,148 @@ export function ImageViewer({ images, initialIndex = 0, open, onClose }: Props) 
   if (!images.length) return null;
   const current = images[index];
 
+  const toolbarButton =
+    'h-8 w-8 text-zinc-300 hover:bg-white/10 hover:text-white disabled:opacity-40';
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullScreen
-      PaperProps={{ sx: { bgcolor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column' } }}
-    >
-      {/* Top bar */}
-      <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        px={2}
-        py={1}
-        sx={{ bgcolor: 'rgba(0,0,0,0.6)', flexShrink: 0 }}
-      >
-        <Typography variant="body2" color="grey.300" noWrap sx={{ maxWidth: '60%' }}>
-          {current.name ?? ''}
-          {images.length > 1 && (
-            <Typography component="span" variant="body2" color="grey.500" ml={1}>
-              {index + 1} / {images.length}
-            </Typography>
-          )}
-        </Typography>
-
-        <Box display="flex" gap={0.5}>
-          <Tooltip title="Zoom out (-)">
-            <span>
-              <IconButton size="small" onClick={() => setZoom((z) => Math.max(z - ZOOM_STEP, ZOOM_MIN))} disabled={zoom <= ZOOM_MIN} sx={{ color: 'grey.300' }}>
-                <ZoomOut />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Reset zoom (100%)">
-            <IconButton size="small" onClick={resetTransform} sx={{ color: 'grey.300' }}>
-              <ZoomOutMap />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Zoom in (+)">
-            <span>
-              <IconButton size="small" onClick={() => setZoom((z) => Math.min(z + ZOOM_STEP, ZOOM_MAX))} disabled={zoom >= ZOOM_MAX} sx={{ color: 'grey.300' }}>
-                <ZoomIn />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Rotate left">
-            <IconButton size="small" onClick={() => setRotation((r) => r - 90)} sx={{ color: 'grey.300' }}>
-              <RotateLeft />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Rotate right">
-            <IconButton size="small" onClick={() => setRotation((r) => r + 90)} sx={{ color: 'grey.300' }}>
-              <RotateRight />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Close (Esc)">
-            <IconButton size="small" onClick={onClose} sx={{ color: 'grey.300', ml: 1 }}>
-              <Close />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-
-      {/* Image area */}
-      <Box
-        flex={1}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        overflow="hidden"
-        position="relative"
-      >
-        {images.length > 1 && (
-          <IconButton
-            onClick={prev}
-            sx={{
-              position: 'absolute', left: 8, zIndex: 10,
-              color: 'white', bgcolor: 'rgba(0,0,0,0.4)',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-            }}
-          >
-            <NavigateBefore fontSize="large" />
-          </IconButton>
-        )}
-
-        <Box
-          component="img"
-          src={current.url}
-          alt={current.name ?? ''}
-          sx={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain',
-            transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease',
-            userSelect: 'none',
-            cursor: zoom > 1 ? 'grab' : 'default',
-          }}
-          draggable={false}
-        />
-
-        {images.length > 1 && (
-          <IconButton
-            onClick={next}
-            sx={{
-              position: 'absolute', right: 8, zIndex: 10,
-              color: 'white', bgcolor: 'rgba(0,0,0,0.4)',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-            }}
-          >
-            <NavigateNext fontSize="large" />
-          </IconButton>
-        )}
-      </Box>
-
-      {/* Thumbnails strip */}
-      {images.length > 1 && (
-        <Box
-          display="flex"
-          gap={1}
-          px={2}
-          py={1}
-          sx={{ bgcolor: 'rgba(0,0,0,0.6)', flexShrink: 0, overflowX: 'auto' }}
-          justifyContent="center"
+    <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Content
+          className="fixed inset-0 z-50 flex flex-col bg-black/95 outline-none"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {images.map((img, i) => (
-            <Box
-              key={i}
-              component="img"
-              src={img.url}
-              alt={img.name ?? ''}
-              onClick={() => goTo(i)}
-              sx={{
-                width: 56,
-                height: 56,
-                objectFit: 'cover',
-                borderRadius: 1,
-                cursor: 'pointer',
-                border: i === index ? '2px solid' : '2px solid transparent',
-                borderColor: i === index ? 'primary.main' : 'transparent',
-                opacity: i === index ? 1 : 0.6,
-                flexShrink: 0,
-                '&:hover': { opacity: 1 },
-              }}
+          <DialogPrimitive.Title className="sr-only">
+            {current.name ?? 'Image viewer'}
+          </DialogPrimitive.Title>
+
+          {/* Top bar */}
+          <div className="flex shrink-0 items-center justify-between bg-black/60 px-4 py-2">
+            <p className="max-w-[60%] truncate text-sm text-zinc-300">
+              {current.name ?? ''}
+              {images.length > 1 && (
+                <span className="ml-2 text-zinc-500">
+                  {index + 1} / {images.length}
+                </span>
+              )}
+            </p>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toolbarButton}
+                title="Zoom out (-)"
+                onClick={() => setZoom((z) => Math.max(z - ZOOM_STEP, ZOOM_MIN))}
+                disabled={zoom <= ZOOM_MIN}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toolbarButton}
+                title="Reset zoom (100%)"
+                onClick={resetTransform}
+              >
+                <Maximize className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toolbarButton}
+                title="Zoom in (+)"
+                onClick={() => setZoom((z) => Math.min(z + ZOOM_STEP, ZOOM_MAX))}
+                disabled={zoom >= ZOOM_MAX}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toolbarButton}
+                title="Rotate left"
+                onClick={() => setRotation((r) => r - 90)}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={toolbarButton}
+                title="Rotate right"
+                onClick={() => setRotation((r) => r + 90)}
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(toolbarButton, 'ml-2')}
+                title="Close (Esc)"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Image area */}
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+            {images.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={prev}
+                className="absolute left-2 z-10 h-10 w-10 rounded-full bg-black/40 text-white hover:bg-black/70 hover:text-white"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+            )}
+
+            <img
+              src={current.url}
+              alt={current.name ?? ''}
+              draggable={false}
+              className={cn(
+                'max-h-full max-w-full select-none object-contain transition-transform duration-200',
+                zoom > 1 ? 'cursor-grab' : 'cursor-default',
+              )}
+              style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
             />
-          ))}
-        </Box>
-      )}
-    </Dialog>
+
+            {images.length > 1 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={next}
+                className="absolute right-2 z-10 h-10 w-10 rounded-full bg-black/40 text-white hover:bg-black/70 hover:text-white"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
+            )}
+          </div>
+
+          {/* Thumbnails strip */}
+          {images.length > 1 && (
+            <div className="flex shrink-0 justify-center gap-2 overflow-x-auto bg-black/60 px-4 py-2">
+              {images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img.url}
+                  alt={img.name ?? ''}
+                  onClick={() => goTo(i)}
+                  className={cn(
+                    'h-14 w-14 shrink-0 cursor-pointer rounded object-cover',
+                    i === index
+                      ? 'border-2 border-primary opacity-100'
+                      : 'border-2 border-transparent opacity-60 hover:opacity-100',
+                  )}
+                />
+              ))}
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

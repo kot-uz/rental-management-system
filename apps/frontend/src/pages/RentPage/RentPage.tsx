@@ -1,57 +1,68 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  CircularProgress,
-  Tabs,
-  Tab,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  TableContainer,
-  Snackbar,
-  Alert,
-} from '@mui/material';
-import { FileDownload } from '@mui/icons-material';
+import { Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { useGetRentPeriodsQuery, useGetOverdueRentQuery, useRecordPaymentMutation, RentPeriod } from '../../entities/rent/api/rentApi';
+import { useForm } from 'react-hook-form';
+import {
+  useGetRentPeriodsQuery,
+  useGetOverdueRentQuery,
+  useRecordPaymentMutation,
+  RentPeriod,
+} from '../../entities/rent/api/rentApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
 import { useAppSelector } from '../../shared/hooks/useAppSelector';
 import { downloadFile } from '../../shared/utils/download';
 import { formatMoney, formatDate, formatMonthYear } from '../../shared/utils/formatMoney';
-import { useForm } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function RentPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState<RentPeriod | null>(null);
-  const [receiptPaymentId, setReceiptPaymentId] = useState<string | null>(null);
-  const [payError, setPayError] = useState<string | null>(null);
 
   const token = useAppSelector((s) => s.auth.accessToken);
   const { data: allData, isLoading } = useGetRentPeriodsQuery({});
   const { data: overdueData } = useGetOverdueRentQuery();
   const [recordPayment, { isLoading: recording }] = useRecordPaymentMutation();
 
-  const { register, handleSubmit, reset } = useForm({
-    defaultValues: { amount: '', paymentDate: new Date().toISOString().split('T')[0], method: 'CASH', note: '' },
+  const { register, handleSubmit, reset, setValue, watch } = useForm({
+    defaultValues: {
+      amount: '',
+      paymentDate: new Date().toISOString().split('T')[0],
+      method: 'CASH',
+      note: '',
+    },
   });
 
-  const periods = (tab === 0 ? allData?.data : overdueData?.data) ?? [];
+  const periods = (tab === 'all' ? allData?.data : overdueData?.data) ?? [];
 
   const onRecord = async (data: { amount: string; paymentDate: string; method: string; note: string }) => {
     if (!selectedPeriod) return;
@@ -62,50 +73,64 @@ export function RentPage() {
       }).unwrap()) as { data?: { id?: string } };
       reset();
       setSelectedPeriod(null);
-      if (result?.data?.id) setReceiptPaymentId(result.data.id);
+      const paymentId = result?.data?.id;
+      toast.success(t('rent.paymentRecorded'), {
+        duration: 8000,
+        action: paymentId
+          ? {
+              label: t('rent.downloadReceipt'),
+              onClick: () => downloadFile(`/reports/payments/${paymentId}/receipt.pdf`, token),
+            }
+          : undefined,
+      });
     } catch (e) {
       const err = e as { status?: number; data?: { error?: { code?: string } } };
-      setPayError(
+      toast.error(
         err.data?.error?.code === 'CONFLICT_002' ? t('rent.periodLocked') : t('rent.paymentFailed'),
       );
     }
   };
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Typography variant="h5">{t('rent.title')}</Typography>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('rent.title')}</h1>
         <Can permission="rent:export">
-          <Button variant="outlined" startIcon={<FileDownload />} onClick={() => downloadFile('/reports/rent.csv', token)}>
+          <Button variant="outline" onClick={() => downloadFile('/reports/rent.csv', token)}>
+            <Download className="mr-2 h-4 w-4" />
             {t('common.exportCsv')}
           </Button>
         </Can>
-      </Box>
+      </div>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-        <Tab label={t('rent.allPeriods')} />
-        <Tab label={t('rent.overdue', { count: overdueData?.data?.length ?? 0 })} />
+      <Tabs value={tab} onValueChange={setTab} className="mb-6">
+        <TabsList>
+          <TabsTrigger value="all">{t('rent.allPeriods')}</TabsTrigger>
+          <TabsTrigger value="overdue">
+            {t('rent.overdue', { count: overdueData?.data?.length ?? 0 })}
+          </TabsTrigger>
+        </TabsList>
       </Tabs>
 
-      {isLoading && <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>}
+      {isLoading && <PageSpinner />}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('common.apartment')}</TableCell>
-              <TableCell>{t('common.tenant')}</TableCell>
-              <TableCell>{t('rent.periodLabel')}</TableCell>
-              <TableCell>{t('rent.dueDate')}</TableCell>
-              <TableCell align="right">{t('rent.expected')}</TableCell>
-              <TableCell align="right">{t('rent.paid')}</TableCell>
-              <TableCell>{t('common.status')}</TableCell>
-              <TableCell>{t('common.action')}</TableCell>
+              <TableHead>{t('common.apartment')}</TableHead>
+              <TableHead>{t('common.tenant')}</TableHead>
+              <TableHead>{t('rent.periodLabel')}</TableHead>
+              <TableHead>{t('rent.dueDate')}</TableHead>
+              <TableHead className="text-right">{t('rent.expected')}</TableHead>
+              <TableHead className="text-right">{t('rent.paid')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead>{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {(periods as RentPeriod[]).map((p) => (
-              <TableRow key={p.id} hover>
+              <TableRow key={p.id}>
                 <TableCell>{p.lease?.apartment?.address ?? '—'}</TableCell>
                 <TableCell>
                   {p.lease?.parties?.[0]?.tenant
@@ -114,12 +139,14 @@ export function RentPage() {
                 </TableCell>
                 <TableCell>{formatMonthYear(p.periodYear, p.periodMonth)}</TableCell>
                 <TableCell>{formatDate(p.dueDate)}</TableCell>
-                <TableCell align="right">{formatMoney(p.expectedAmount)}</TableCell>
-                <TableCell align="right">{formatMoney(p.paidAmount)}</TableCell>
-                <TableCell><StatusBadge status={p.status} /></TableCell>
+                <TableCell className="text-right">{formatMoney(p.expectedAmount)}</TableCell>
+                <TableCell className="text-right">{formatMoney(p.paidAmount)}</TableCell>
+                <TableCell>
+                  <StatusBadge status={p.status} />
+                </TableCell>
                 <TableCell>
                   {p.status !== 'PAID' && p.status !== 'VOIDED' && (
-                    <Button size="small" variant="outlined" onClick={() => setSelectedPeriod(p)}>
+                    <Button size="sm" variant="outline" onClick={() => setSelectedPeriod(p)}>
                       {t('rent.recordPayment')}
                     </Button>
                   )}
@@ -127,74 +154,62 @@ export function RentPage() {
               </TableRow>
             ))}
             {!isLoading && periods.length === 0 && (
-              <TableRow><TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>{t('rent.noRecords')}</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  {t('rent.noRecords')}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={!!selectedPeriod} onClose={() => setSelectedPeriod(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('rent.recordPayment')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onRecord)}>
-          <DialogContent>
+      <Dialog open={!!selectedPeriod} onOpenChange={(o) => !o && setSelectedPeriod(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('rent.recordPayment')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onRecord)} className="space-y-4">
             {selectedPeriod && (
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {t('rent.remaining', { amount: formatMoney(selectedPeriod.expectedAmount - selectedPeriod.paidAmount) })}
-              </Typography>
+              <p className="text-sm text-muted-foreground">
+                {t('rent.remaining', {
+                  amount: formatMoney(selectedPeriod.expectedAmount - selectedPeriod.paidAmount),
+                })}
+              </p>
             )}
-            <TextField {...register('amount')} label={t('common.amount')} type="number" fullWidth sx={{ mb: 2 }} required />
-            <TextField {...register('paymentDate')} label={t('rent.paymentDate')} type="date" fullWidth sx={{ mb: 2 }} InputLabelProps={{ shrink: true }} />
-            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-              <InputLabel>{t('rent.method')}</InputLabel>
-              <Select {...register('method')} label={t('rent.method')} defaultValue="CASH">
-                <MenuItem value="CASH">{t('rent.methodCash')}</MenuItem>
-                <MenuItem value="BANK_TRANSFER">{t('rent.methodBankTransfer')}</MenuItem>
-                <MenuItem value="CARD">{t('rent.methodCard')}</MenuItem>
+            <Field label={t('common.amount')} htmlFor="rp-amount">
+              <Input id="rp-amount" type="number" step="0.01" required {...register('amount')} />
+            </Field>
+            <Field label={t('rent.paymentDate')} htmlFor="rp-date">
+              <Input id="rp-date" type="date" {...register('paymentDate')} />
+            </Field>
+            <Field label={t('rent.method')}>
+              <Select value={watch('method')} onValueChange={(v) => setValue('method', v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">{t('rent.methodCash')}</SelectItem>
+                  <SelectItem value="BANK_TRANSFER">{t('rent.methodBankTransfer')}</SelectItem>
+                  <SelectItem value="CARD">{t('rent.methodCard')}</SelectItem>
+                </SelectContent>
               </Select>
-            </FormControl>
-            <TextField {...register('note')} label={t('rent.note')} fullWidth />
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setSelectedPeriod(null)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={recording}>
-              {recording ? <CircularProgress size={20} /> : t('rent.record')}
-            </Button>
-          </DialogActions>
-        </Box>
+            </Field>
+            <Field label={t('rent.note')} htmlFor="rp-note">
+              <Input id="rp-note" {...register('note')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setSelectedPeriod(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={recording}>
+                {recording && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('rent.record')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
-
-      <Snackbar
-        open={!!receiptPaymentId}
-        autoHideDuration={8000}
-        onClose={() => setReceiptPaymentId(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          severity="success"
-          onClose={() => setReceiptPaymentId(null)}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              startIcon={<FileDownload />}
-              onClick={() => receiptPaymentId && downloadFile(`/reports/payments/${receiptPaymentId}/receipt.pdf`, token)}
-            >
-              {t('rent.downloadReceipt')}
-            </Button>
-          }
-        >
-          {t('rent.paymentRecorded')}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!payError}
-        autoHideDuration={5000}
-        onClose={() => setPayError(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert severity="error" onClose={() => setPayError(null)}>{payError}</Alert>
-      </Snackbar>
-    </Box>
+    </div>
   );
 }

@@ -1,6 +1,53 @@
 {
+  "landing": {
+    "hero": {
+      "badge": "Ijara boshqaruvi — oson",
+      "title": "Barcha ijaralaringiz bir joyda",
+      "subtitle": "Xonadonlar, ijarachilar, shartnomalar, to'lovlar, kommunal va ta'mirlash — realtime bildirishnomalar, Telegram ogohlantirishlari va to'liq audit jurnali bilan.",
+      "cta": "Ilovani ochish",
+      "secondaryCta": "Imkoniyatlar",
+      "demoHint": "Demo: owner@demo.com / password123"
+    },
+    "features": {
+      "title": "Ijara boshqaruvi uchun hamma narsa",
+      "subtitle": "Birinchi ko'rikdan oxirgi hisobgacha.",
+      "apartments": {
+        "title": "Xonadonlar",
+        "desc": "Har bir obyekt tafsilotlari, foto va hujjatlari bilan bitta kartada."
+      },
+      "tenants": {
+        "title": "Ijarachilar",
+        "desc": "Kontaktlar, to'lovlar tarixi va shartnomalar bilan profillar."
+      },
+      "leases": {
+        "title": "Shartnomalar",
+        "desc": "Kontraktlar, depozitlar va shartlar — imzolashdan bekor qilishgacha."
+      },
+      "payments": {
+        "title": "Ijara va to'lovlar",
+        "desc": "To'lovlarni qayd eting, qarzlar va kechikishlarni kuzating."
+      },
+      "utilities": {
+        "title": "Kommunal",
+        "desc": "Hisoblagich ko'rsatkichlari va hisoblar — bir klikda."
+      },
+      "repairs": {
+        "title": "Ta'mirlash",
+        "desc": "Ustuvorliklar, pudratchilar va xarajatlar hisobi bilan so'rovlar."
+      },
+      "accounting": {
+        "title": "Hisob davrlari",
+        "desc": "Yopiq oylarni qulflang — o'tgan to'lovlar o'zgarmaydi."
+      },
+      "notifications": {
+        "title": "Realtime bildirishnomalar",
+        "desc": "Hodisa sodir bo'lganda ilova va Telegram orqali xabar."
+      }
+    },
+    "footer": { "tagline": "Ijara boshqaruv tizimi" }
+  },
   "nav": {
-    "dashboard": "Bosh sahifa",
+    "dashboard": "Dashbord",
     "apartments": "Xonadonlar",
     "tenants": "Ijarachilar",
     "leases": "Shartnomalar",

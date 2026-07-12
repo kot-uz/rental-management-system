@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Button } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 
 const LANGUAGES = [
   { code: 'en', label: 'EN' },
@@ -13,18 +13,18 @@ export function LanguageSwitcher() {
   const current = i18n.language?.slice(0, 2);
 
   return (
-    <Box sx={{ display: 'flex', gap: 0.5, mr: 1 }}>
+    <div className="flex gap-1">
       {LANGUAGES.map((lang) => (
         <Button
           key={lang.code}
-          size="small"
-          variant={current === lang.code ? 'contained' : 'text'}
+          size="sm"
+          variant={current === lang.code ? 'default' : 'ghost'}
           onClick={() => i18n.changeLanguage(lang.code)}
-          sx={{ minWidth: 36, px: 0.5, py: 0.25, fontSize: 12, fontWeight: 600 }}
+          className="h-7 min-w-9 px-1.5 text-xs font-semibold"
         >
           {lang.label}
         </Button>
       ))}
-    </Box>
+    </div>
   );
 }

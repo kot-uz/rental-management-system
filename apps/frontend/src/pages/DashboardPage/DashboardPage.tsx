@@ -1,45 +1,41 @@
 import React from 'react';
+import { AlertTriangle, Banknote, Building2, Wrench } from 'lucide-react';
 import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  CircularProgress,
-  Alert,
-  Paper,
-} from '@mui/material';
-import {
-  Apartment,
-  AttachMoney,
-  Warning,
-  Build,
-} from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { useGetSummaryQuery, useGetRevenueQuery } from '../../entities/dashboard/api/dashboardApi';
 import { formatMoney } from '../../shared/utils/formatMoney';
+import { PageSpinner, Spinner } from '../../shared/ui/Spinner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 interface KpiCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   icon: React.ReactNode;
-  color: string;
+  iconClassName: string;
 }
 
-function KpiCard({ title, value, subtitle, icon, color }: KpiCardProps) {
+function KpiCard({ title, value, subtitle, icon, iconClassName }: KpiCardProps) {
   return (
     <Card>
-      <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box>
-            <Typography color="text.secondary" variant="body2" gutterBottom>{title}</Typography>
-            <Typography variant="h4" fontWeight={700}>{value}</Typography>
-            {subtitle && <Typography color="text.secondary" variant="body2" mt={0.5}>{subtitle}</Typography>}
-          </Box>
-          <Box sx={{ bgcolor: color, borderRadius: 2, p: 1.5, color: 'white' }}>{icon}</Box>
-        </Box>
+      <CardContent className="flex items-start justify-between p-5">
+        <div>
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">{value}</p>
+          {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        <div className={cn('rounded-lg p-2.5 text-white', iconClassName)}>{icon}</div>
       </CardContent>
     </Card>
   );
@@ -53,96 +49,122 @@ export function DashboardPage() {
   const summary = summaryData?.data;
   const revenue = revenueData?.data ?? [];
 
-  if (summaryLoading) {
-    return <Box display="flex" justifyContent="center" mt={8}><CircularProgress /></Box>;
-  }
+  if (summaryLoading) return <PageSpinner />;
 
   return (
-    <Box>
-      <Typography variant="h5" mb={3}>{t('dashboard.title')}</Typography>
+    <div>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">{t('dashboard.title')}</h1>
 
-      <Grid container spacing={2} mb={4}>
-        <Grid item xs={12} sm={6} lg={3}>
-          <KpiCard
-            title={t('dashboard.totalApartments')}
-            value={summary?.apartments.total ?? 0}
-            subtitle={t('dashboard.occupiedVacant', { occupied: summary?.apartments.occupied ?? 0, vacant: summary?.apartments.vacant ?? 0 })}
-            icon={<Apartment />}
-            color="#1976d2"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <KpiCard
-            title={t('dashboard.monthlyCollected')}
-            value={formatMoney(summary?.rent.monthlyCollected ?? 0)}
-            subtitle={t('dashboard.thisMonth')}
-            icon={<AttachMoney />}
-            color="#388e3c"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <KpiCard
-            title={t('dashboard.overdueRent')}
-            value={summary?.rent.overdueCount ?? 0}
-            subtitle={t('dashboard.overdueTotal', { amount: formatMoney(summary?.rent.overdueAmount ?? 0) })}
-            icon={<Warning />}
-            color={summary?.rent.overdueCount ? '#d32f2f' : '#757575'}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <KpiCard
-            title={t('dashboard.openRepairs')}
-            value={summary?.repairs.open ?? 0}
-            subtitle={t('dashboard.unpaidUtilities', { count: summary?.utilities.unpaidCount ?? 0 })}
-            icon={<Build />}
-            color="#f57c00"
-          />
-        </Grid>
-      </Grid>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={t('dashboard.totalApartments')}
+          value={summary?.apartments.total ?? 0}
+          subtitle={t('dashboard.occupiedVacant', {
+            occupied: summary?.apartments.occupied ?? 0,
+            vacant: summary?.apartments.vacant ?? 0,
+          })}
+          icon={<Building2 className="h-5 w-5" />}
+          iconClassName="bg-blue-600"
+        />
+        <KpiCard
+          title={t('dashboard.monthlyCollected')}
+          value={formatMoney(summary?.rent.monthlyCollected ?? 0)}
+          subtitle={t('dashboard.thisMonth')}
+          icon={<Banknote className="h-5 w-5" />}
+          iconClassName="bg-emerald-600"
+        />
+        <KpiCard
+          title={t('dashboard.overdueRent')}
+          value={summary?.rent.overdueCount ?? 0}
+          subtitle={t('dashboard.overdueTotal', {
+            amount: formatMoney(summary?.rent.overdueAmount ?? 0),
+          })}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          iconClassName={summary?.rent.overdueCount ? 'bg-red-600' : 'bg-zinc-500'}
+        />
+        <KpiCard
+          title={t('dashboard.openRepairs')}
+          value={summary?.repairs.open ?? 0}
+          subtitle={t('dashboard.unpaidUtilities', { count: summary?.utilities.unpaidCount ?? 0 })}
+          icon={<Wrench className="h-5 w-5" />}
+          iconClassName="bg-orange-500"
+        />
+      </div>
 
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" mb={2}>{t('dashboard.revenueOverview')}</Typography>
-        {revenueLoading ? (
-          <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
-        ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={revenue} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value) => formatMoney(value as number)} />
-              <Legend />
-              <Bar dataKey="income" name={t('dashboard.income')} fill="#1976d2" />
-              <Bar dataKey="repairExpenses" name={t('dashboard.repairCosts')} fill="#d32f2f" />
-              <Bar dataKey="profit" name={t('dashboard.netProfit')} fill="#388e3c" />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </Paper>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">{t('dashboard.revenueOverview')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {revenueLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={revenue} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis
+                  tickFormatter={(v) => `$${v}`}
+                  tick={{ fontSize: 12 }}
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <Tooltip
+                  formatter={(value) => formatMoney(value as number)}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    color: 'hsl(var(--popover-foreground))',
+                  }}
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                />
+                <Legend />
+                <Bar dataKey="income" name={t('dashboard.income')} fill="#3b82f6" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="repairExpenses" name={t('dashboard.repairCosts')} fill="#ef4444" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="profit" name={t('dashboard.netProfit')} fill="#10b981" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {summary && summary.rent.overdueCount > 0 ? (
-        <Alert severity="error" sx={{ mt: 3 }}>
-          {t('dashboard.rentOverdueAlert', {
-            count: summary.rent.overdueCount,
-            amount: formatMoney(summary.rent.overdueAmount),
-          })}
+        <Alert variant="destructive" className="mt-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {t('dashboard.rentOverdueAlert', {
+              count: summary.rent.overdueCount,
+              amount: formatMoney(summary.rent.overdueAmount),
+            })}
+          </AlertDescription>
         </Alert>
       ) : null}
 
       {summary && summary.rent.dueSoonCount > 0 ? (
-        <Alert severity="warning" sx={{ mt: 3 }}>
-          {t('dashboard.rentDueAlert', {
-            count: summary.rent.dueSoonCount,
-            today: summary.rent.dueTodayCount,
-          })}
+        <Alert className="mt-4 border-amber-500/50 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {t('dashboard.rentDueAlert', {
+              count: summary.rent.dueSoonCount,
+              today: summary.rent.dueTodayCount,
+            })}
+          </AlertDescription>
         </Alert>
       ) : null}
 
       {summary?.utilities.unpaidAmount ? (
-        <Alert severity="warning" sx={{ mt: 3 }}>
-          {t('dashboard.unpaidUtilityAlert', { count: summary.utilities.unpaidCount, amount: formatMoney(summary.utilities.unpaidAmount) })}
+        <Alert className="mt-4 border-amber-500/50 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {t('dashboard.unpaidUtilityAlert', {
+              count: summary.utilities.unpaidCount,
+              amount: formatMoney(summary.utilities.unpaidAmount),
+            })}
+          </AlertDescription>
         </Alert>
       ) : null}
-    </Box>
+    </div>
   );
 }

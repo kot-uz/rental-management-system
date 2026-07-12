@@ -1,33 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  Paper,
-  Grid,
-  Chip,
-  CircularProgress,
-  Alert,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-} from '@mui/material';
-import { ArrowBack, Edit, Delete } from '@mui/icons-material';
+import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import {
@@ -37,12 +10,44 @@ import {
 } from '../../entities/tenants/api/tenantsApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { BackButton, ConfirmDialog, DetailItem, EmptyRow } from '../../shared/ui/DetailBits';
 import { EntityTags } from '../../widgets/EntityTags/EntityTags';
 import { DocumentsSection } from '../../widgets/DocumentsSection/DocumentsSection';
 import { PhotosSection } from '../../widgets/PhotosSection/PhotosSection';
 import { TelegramLinkButton } from '../../widgets/TelegramLink/TelegramLinkButton';
 import { useLinkTenantTelegramMutation } from '../../entities/telegram/api/telegramApi';
 import { formatMoney, formatDate } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type EditForm = {
   firstName: string;
@@ -59,7 +64,6 @@ export function TenantDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();
-  const [tab, setTab] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -68,7 +72,7 @@ export function TenantDetailPage() {
   const [deleteTenant] = useDeleteTenantMutation();
   const [linkTenant] = useLinkTenantTelegramMutation();
 
-  const { register, handleSubmit, reset } = useForm<EditForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<EditForm>();
 
   const tenant = data?.data;
   const parties = tenant?.leaseParties ?? [];
@@ -104,223 +108,225 @@ export function TenantDetailPage() {
   const onDelete = async () => {
     await deleteTenant(id);
     setConfirmOpen(false);
-    navigate('/tenants');
+    navigate('/app/tenants');
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" mt={6}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (isLoading) return <PageSpinner />;
   if (error || !tenant) {
-    return <Alert severity="error">{t('tenants.failedToLoad')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('tenants.failedToLoad')}</AlertDescription>
+      </Alert>
+    );
   }
 
   return (
-    <Box>
-      <Button startIcon={<ArrowBack />} onClick={() => navigate('/tenants')} sx={{ mb: 2 }}>
-        {t('common.back')}
-      </Button>
+    <div>
+      <BackButton onClick={() => navigate('/app/tenants')} />
 
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
             {tenant.firstName} {tenant.lastName}
-          </Typography>
-          <Box mt={1}>
-            <Chip
-              size="small"
-              color={tenant.isActive ? 'success' : 'default'}
-              label={tenant.isActive ? t('tenants.statusActive') : t('tenants.statusInactive')}
-            />
-          </Box>
-        </Box>
-        <Box display="flex" gap={1}>
+          </h1>
+          <div className="mt-2">
+            <Badge
+              variant={tenant.isActive ? 'default' : 'secondary'}
+              className={
+                tenant.isActive
+                  ? 'border-transparent bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/20 dark:text-emerald-300'
+                  : ''
+              }
+            >
+              {tenant.isActive ? t('tenants.statusActive') : t('tenants.statusInactive')}
+            </Badge>
+          </div>
+        </div>
+        <div className="flex gap-2">
           <Can permission="tenants:update">
-            <Button variant="outlined" startIcon={<Edit />} onClick={openEdit}>
+            <Button variant="outline" onClick={openEdit}>
+              <Pencil className="mr-2 h-4 w-4" />
               {t('common.edit')}
             </Button>
           </Can>
           <Can permission="tenants:delete">
-            <Button color="error" variant="outlined" startIcon={<Delete />} onClick={() => setConfirmOpen(true)}>
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
               {t('common.delete')}
             </Button>
           </Can>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
-          <Tab label={t('common.overview')} />
-          <Tab label={`${t('nav.leases')} (${parties.length})`} />
-          <Tab label={t('tenants.photos')} />
-          <Tab label={t('documents.title')} />
-        </Tabs>
-      </Paper>
+      <Tabs defaultValue="overview">
+        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="overview">{t('common.overview')}</TabsTrigger>
+          <TabsTrigger value="leases">{`${t('nav.leases')} (${parties.length})`}</TabsTrigger>
+          <TabsTrigger value="photos">{t('tenants.photos')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('documents.title')}</TabsTrigger>
+        </TabsList>
 
-      {tab === 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            <Detail label={t('common.phone')} value={tenant.phone} />
-            <Detail label={t('tenants.idType')} value={idTypeLabel(tenant.idType)} />
-            <Detail label={t('tenants.idNumber')} value={tenant.idNumber} />
-            {tenant.telegram && <Detail label={t('tenants.telegram')} value={tenant.telegram} />}
-            {tenant.emergencyContact && (
-              <Detail label={t('tenants.emergencyContact')} value={tenant.emergencyContact} />
-            )}
-            <Detail label={t('tenants.added')} value={formatDate(tenant.createdAt)} />
-            {tenant.notes && <Detail label={t('common.notes')} value={tenant.notes} full />}
-          </Grid>
-          <Box mt={3} pt={2} borderTop={1} borderColor="divider">
-            <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-              {t('tenants.telegramNotify')}
-            </Typography>
-            <TelegramLinkButton
-              linked={!!tenant.telegramChatId}
-              requestLink={async () => (await linkTenant(id).unwrap()).data}
-            />
-          </Box>
-          <Box mt={3} pt={2} borderTop={1} borderColor="divider">
-            <EntityTags entityType="tenant" entityId={id} />
-          </Box>
-        </Paper>
-      )}
+        <TabsContent value="overview">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailItem label={t('common.phone')} value={tenant.phone} />
+                <DetailItem label={t('tenants.idType')} value={idTypeLabel(tenant.idType)} />
+                <DetailItem label={t('tenants.idNumber')} value={tenant.idNumber} />
+                {tenant.telegram && <DetailItem label={t('tenants.telegram')} value={tenant.telegram} />}
+                {tenant.emergencyContact && (
+                  <DetailItem label={t('tenants.emergencyContact')} value={tenant.emergencyContact} />
+                )}
+                <DetailItem label={t('tenants.added')} value={formatDate(tenant.createdAt)} />
+                {tenant.notes && <DetailItem label={t('common.notes')} value={tenant.notes} full />}
+              </div>
+              <div className="mt-6 border-t pt-4">
+                <p className="mb-2 text-xs text-muted-foreground">{t('tenants.telegramNotify')}</p>
+                <TelegramLinkButton
+                  linked={!!tenant.telegramChatId}
+                  requestLink={async () => (await linkTenant(id).unwrap()).data}
+                />
+              </div>
+              <div className="mt-6 border-t pt-4">
+                <EntityTags entityType="tenant" entityId={id} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 1 && (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('common.apartment')}</TableCell>
-                <TableCell>{t('leases.start')}</TableCell>
-                <TableCell>{t('leases.end')}</TableCell>
-                <TableCell align="right">{t('leases.monthlyRent')}</TableCell>
-                <TableCell>{t('common.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {parties.map((p) => (
-                <TableRow
-                  key={p.id}
-                  hover
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/leases/${p.lease.id}`)}
-                >
-                  <TableCell>
-                    {p.lease.apartment
-                      ? `${p.lease.apartment.address}${p.lease.apartment.unitNumber ? ` · ${p.lease.apartment.unitNumber}` : ''}`
-                      : '—'}
-                  </TableCell>
-                  <TableCell>{formatDate(p.lease.startDate)}</TableCell>
-                  <TableCell>{formatDate(p.lease.endDate)}</TableCell>
-                  <TableCell align="right">{formatMoney(p.lease.monthlyRent, p.lease.currency)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={p.lease.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {parties.length === 0 && (
+        <TabsContent value="leases">
+          <Card>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    {t('leases.noLeases')}
-                  </TableCell>
+                  <TableHead>{t('common.apartment')}</TableHead>
+                  <TableHead>{t('leases.start')}</TableHead>
+                  <TableHead>{t('leases.end')}</TableHead>
+                  <TableHead className="text-right">{t('leases.monthlyRent')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+              </TableHeader>
+              <TableBody>
+                {parties.map((p) => (
+                  <TableRow
+                    key={p.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/app/leases/${p.lease.id}`)}
+                  >
+                    <TableCell>
+                      {p.lease.apartment
+                        ? `${p.lease.apartment.address}${p.lease.apartment.unitNumber ? ` · ${p.lease.apartment.unitNumber}` : ''}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell>{formatDate(p.lease.startDate)}</TableCell>
+                    <TableCell>{formatDate(p.lease.endDate)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatMoney(p.lease.monthlyRent, p.lease.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={p.lease.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {parties.length === 0 && <EmptyRow colSpan={5} text={t('leases.noLeases')} />}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
 
-      {tab === 2 && (
-        <Paper sx={{ p: 3 }}>
-          <PhotosSection
-            ownerType="tenant"
-            ownerId={id}
-            permission="tenants:update"
-            purpose="tenant-photo"
-            titleKey="tenants.photos"
-            addKey="tenants.addPhoto"
-            emptyKey="tenants.noPhotos"
-          />
-        </Paper>
-      )}
+        <TabsContent value="photos">
+          <Card>
+            <CardContent className="p-6">
+              <PhotosSection
+                ownerType="tenant"
+                ownerId={id}
+                permission="tenants:update"
+                purpose="tenant-photo"
+                titleKey="tenants.photos"
+                addKey="tenants.addPhoto"
+                emptyKey="tenants.noPhotos"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 3 && <DocumentsSection ownerType="tenant" ownerId={id} />}
+        <TabsContent value="documents">
+          <DocumentsSection ownerType="tenant" ownerId={id} />
+        </TabsContent>
+      </Tabs>
 
       {/* Edit dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('common.edit')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSave)}>
-          <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField {...register('firstName')} label={t('auth.firstName')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('lastName')} label={t('auth.lastName')} fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('phone')} label={t('common.phone')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>{t('tenants.idType')}</InputLabel>
-                  <Select {...register('idType')} label={t('tenants.idType')} defaultValue={tenant.idType}>
-                    <MenuItem value="PASSPORT">{t('tenants.idPassport')}</MenuItem>
-                    <MenuItem value="NATIONAL_ID">{t('tenants.idNational')}</MenuItem>
-                    <MenuItem value="OTHER">{t('tenants.idOther')}</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('idNumber')} label={t('tenants.idNumber')} fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('telegram')} label={t('tenants.telegram')} fullWidth placeholder="@username" />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('emergencyContact')} label={t('tenants.emergencyContact')} fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('notes')} label={t('common.notes')} fullWidth multiline rows={2} />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setEditOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={saving}>
-              {saving ? <CircularProgress size={20} /> : t('common.save')}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-
-      {/* Delete confirm */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>{t('common.delete')}</DialogTitle>
-        <DialogContent>
-          <Typography>{t('common.deleteConfirm')}</Typography>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('common.edit')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('auth.firstName')} htmlFor="te-first">
+                <Input id="te-first" {...register('firstName')} />
+              </Field>
+              <Field label={t('auth.lastName')} htmlFor="te-last">
+                <Input id="te-last" {...register('lastName')} />
+              </Field>
+            </div>
+            <Field label={t('common.phone')} htmlFor="te-phone">
+              <Input id="te-phone" {...register('phone')} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('tenants.idType')}>
+                <Select
+                  value={watch('idType')}
+                  onValueChange={(v) => setValue('idType', v as EditForm['idType'])}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PASSPORT">{t('tenants.idPassport')}</SelectItem>
+                    <SelectItem value="NATIONAL_ID">{t('tenants.idNational')}</SelectItem>
+                    <SelectItem value="OTHER">{t('tenants.idOther')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('tenants.idNumber')} htmlFor="te-idnum">
+                <Input id="te-idnum" {...register('idNumber')} />
+              </Field>
+            </div>
+            <Field label={t('tenants.telegram')} htmlFor="te-telegram">
+              <Input id="te-telegram" placeholder="@username" {...register('telegram')} />
+            </Field>
+            <Field label={t('tenants.emergencyContact')} htmlFor="te-emergency">
+              <Input id="te-emergency" {...register('emergencyContact')} />
+            </Field>
+            <Field label={t('common.notes')} htmlFor="te-notes">
+              <Textarea id="te-notes" rows={2} {...register('notes')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
-          <Button color="error" variant="contained" onClick={onDelete}>
-            {t('common.delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
-  );
-}
 
-function Detail({ label, value, full }: { label: string; value: string; full?: boolean }) {
-  return (
-    <Grid item xs={12} sm={full ? 12 : 6}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography>{value}</Typography>
-    </Grid>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('common.delete')}
+        description={t('common.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        onConfirm={onDelete}
+      />
+    </div>
   );
 }

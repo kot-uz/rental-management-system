@@ -1,11 +1,11 @@
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { CircularProgress, Box } from '@mui/material';
+import { Loader2 } from 'lucide-react';
 import { ProtectedRoute } from './app/providers/ProtectedRoute';
 import { AppLayout } from './widgets/Layout/AppLayout';
+import { APP_BASE } from './shared/config/routes';
 
-const LoginPage = lazy(() => import('./pages/LoginPage/LoginPage').then((m) => ({ default: m.LoginPage })));
-const RegisterPage = lazy(() => import('./pages/LoginPage/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const AuthPage = lazy(() => import('./pages/LoginPage/AuthPage').then((m) => ({ default: m.AuthPage })));
 const RequestResetPage = lazy(() => import('./pages/LoginPage/RequestResetPage').then((m) => ({ default: m.RequestResetPage })));
 const ConfirmResetPage = lazy(() => import('./pages/LoginPage/ConfirmResetPage').then((m) => ({ default: m.ConfirmResetPage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage/DashboardPage').then((m) => ({ default: m.DashboardPage })));
@@ -29,9 +29,9 @@ const AccountingPage = lazy(() => import('./pages/AccountingPage/AccountingPage'
 
 function Loader() {
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-      <CircularProgress />
-    </Box>
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
   );
 }
 
@@ -39,31 +39,32 @@ export default function App() {
   return (
     <Suspense fallback={<Loader />}>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/" element={<AuthPage />} />
+        <Route path="/login" element={<Navigate to="/" replace state={{ auth: 'login' }} />} />
+        <Route path="/register" element={<Navigate to="/" replace state={{ auth: 'register' }} />} />
         <Route path="/forgot-password" element={<RequestResetPage />} />
         <Route path="/reset-password" element={<ConfirmResetPage />} />
 
-        <Route element={<ProtectedRoute />}>
+        <Route path={APP_BASE} element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/apartments" element={<ApartmentsPage />} />
-            <Route path="/apartments/:id" element={<ApartmentDetailPage />} />
-            <Route path="/tenants" element={<TenantsPage />} />
-            <Route path="/tenants/:id" element={<TenantDetailPage />} />
-            <Route path="/leases" element={<LeasesPage />} />
-            <Route path="/leases/:id" element={<LeaseDetailPage />} />
-            <Route path="/rent" element={<RentPage />} />
-            <Route path="/utilities" element={<UtilitiesPage />} />
-            <Route path="/utilities/:id" element={<UtilityDetailPage />} />
-            <Route path="/repairs" element={<RepairsPage />} />
-            <Route path="/repairs/:id" element={<RepairDetailPage />} />
-            <Route path="/contractors" element={<ContractorsPage />} />
-            <Route path="/audit" element={<AuditLogPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/webhooks" element={<WebhooksPage />} />
-            <Route path="/tags" element={<TagsPage />} />
-            <Route path="/accounting" element={<AccountingPage />} />
+            <Route index element={<DashboardPage />} />
+            <Route path="apartments" element={<ApartmentsPage />} />
+            <Route path="apartments/:id" element={<ApartmentDetailPage />} />
+            <Route path="tenants" element={<TenantsPage />} />
+            <Route path="tenants/:id" element={<TenantDetailPage />} />
+            <Route path="leases" element={<LeasesPage />} />
+            <Route path="leases/:id" element={<LeaseDetailPage />} />
+            <Route path="rent" element={<RentPage />} />
+            <Route path="utilities" element={<UtilitiesPage />} />
+            <Route path="utilities/:id" element={<UtilityDetailPage />} />
+            <Route path="repairs" element={<RepairsPage />} />
+            <Route path="repairs/:id" element={<RepairDetailPage />} />
+            <Route path="contractors" element={<ContractorsPage />} />
+            <Route path="audit" element={<AuditLogPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="webhooks" element={<WebhooksPage />} />
+            <Route path="tags" element={<TagsPage />} />
+            <Route path="accounting" element={<AccountingPage />} />
           </Route>
         </Route>
 

@@ -1,57 +1,48 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Box,
-  Drawer,
-  AppBar,
-  Toolbar,
-  Typography,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  IconButton,
-  useMediaQuery,
-  useTheme,
-  Divider,
-  Avatar,
-  Menu,
-  MenuItem,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Dashboard,
-  Apartment,
-  People,
-  Assignment,
-  AttachMoney,
-  Build,
-  ElectricBolt,
-  Engineering,
+  Banknote,
+  Building2,
+  FileText,
+  HardHat,
   History,
-  Settings,
-  Webhook,
-  LocalOffer,
+  LayoutDashboard,
+  Loader2,
   Lock,
-  Menu as MenuIcon,
-} from '@mui/icons-material';
+  LogOut,
+  Menu,
+  Settings,
+  Tag,
+  Users,
+  Webhook,
+  Wrench,
+  Zap,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector, useAppDispatch } from '../../shared/hooks/useAppSelector';
 import { logout } from '../../entities/auth/model/authSlice';
 import { NotificationBell } from '../NotificationBell/NotificationBell';
 import { GlobalSearchBar } from '../GlobalSearchBar/GlobalSearchBar';
 import { LanguageSwitcher } from '../../shared/ui/LanguageSwitcher';
+import { ThemeToggle } from '../../shared/ui/ThemeToggle';
 import { usePermissions } from '../../shared/hooks/usePermissions';
-
-const DRAWER_WIDTH = 240;
+import { APP_BASE, appPath } from '../../shared/config/routes';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 export function AppLayout() {
   const { t } = useTranslation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
@@ -59,19 +50,19 @@ export function AppLayout() {
   const { can } = usePermissions();
 
   const navItems = [
-    { labelKey: 'nav.dashboard', icon: <Dashboard />, path: '/' },
-    { labelKey: 'nav.apartments', icon: <Apartment />, path: '/apartments' },
-    { labelKey: 'nav.tenants', icon: <People />, path: '/tenants' },
-    { labelKey: 'nav.leases', icon: <Assignment />, path: '/leases' },
-    { labelKey: 'nav.rent', icon: <AttachMoney />, path: '/rent' },
-    { labelKey: 'nav.utilities', icon: <ElectricBolt />, path: '/utilities' },
-    { labelKey: 'nav.repairs', icon: <Build />, path: '/repairs' },
-    { labelKey: 'nav.contractors', icon: <Engineering />, path: '/contractors' },
-    ...(can('audit:read') ? [{ labelKey: 'nav.audit', icon: <History />, path: '/audit' }] : []),
-    ...(can('accounting:read') ? [{ labelKey: 'nav.accounting', icon: <Lock />, path: '/accounting' }] : []),
-    ...(can('tags:read') ? [{ labelKey: 'nav.tags', icon: <LocalOffer />, path: '/tags' }] : []),
-    ...(can('webhooks:read') ? [{ labelKey: 'nav.webhooks', icon: <Webhook />, path: '/webhooks' }] : []),
-    ...(can('org:read') ? [{ labelKey: 'nav.settings', icon: <Settings />, path: '/settings' }] : []),
+    { labelKey: 'nav.dashboard', icon: LayoutDashboard, path: appPath() },
+    { labelKey: 'nav.apartments', icon: Building2, path: appPath('/apartments') },
+    { labelKey: 'nav.tenants', icon: Users, path: appPath('/tenants') },
+    { labelKey: 'nav.leases', icon: FileText, path: appPath('/leases') },
+    { labelKey: 'nav.rent', icon: Banknote, path: appPath('/rent') },
+    { labelKey: 'nav.utilities', icon: Zap, path: appPath('/utilities') },
+    { labelKey: 'nav.repairs', icon: Wrench, path: appPath('/repairs') },
+    { labelKey: 'nav.contractors', icon: HardHat, path: appPath('/contractors') },
+    ...(can('audit:read') ? [{ labelKey: 'nav.audit', icon: History, path: appPath('/audit') }] : []),
+    ...(can('accounting:read') ? [{ labelKey: 'nav.accounting', icon: Lock, path: appPath('/accounting') }] : []),
+    ...(can('tags:read') ? [{ labelKey: 'nav.tags', icon: Tag, path: appPath('/tags') }] : []),
+    ...(can('webhooks:read') ? [{ labelKey: 'nav.webhooks', icon: Webhook, path: appPath('/webhooks') }] : []),
+    ...(can('org:read') ? [{ labelKey: 'nav.settings', icon: Settings, path: appPath('/settings') }] : []),
   ];
 
   useEffect(() => {
@@ -80,89 +71,114 @@ export function AppLayout() {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login');
+    navigate('/');
   };
 
-  const drawerContent = (
-    <Box>
-      <Toolbar>
-        <Typography variant="h6" fontWeight={700} color="primary">
-          RentManager
-        </Typography>
-      </Toolbar>
-      <Divider />
-      <List>
-        {navItems.map((item) => (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))}
-              onClick={() => {
-                navigate(item.path);
-                if (isMobile) setMobileOpen(false);
-              }}
-              sx={{ borderRadius: 1, mx: 1, my: 0.25 }}
-            >
-              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={t(item.labelKey)} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
+  const isActive = (path: string) =>
+    location.pathname === path || (path !== APP_BASE && location.pathname.startsWith(path));
+
+  const sidebarNav = (
+    <nav className="flex flex-col gap-0.5 p-2">
+      {navItems.map((item) => (
+        <button
+          key={item.path}
+          type="button"
+          onClick={() => navigate(item.path)}
+          className={cn(
+            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+            isActive(item.path)
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          <item.icon className="h-4 w-4 shrink-0" />
+          {t(item.labelKey)}
+        </button>
+      ))}
+    </nav>
+  );
+
+  const brand = (
+    <div className="flex h-14 items-center gap-2 border-b px-4">
+      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+        <Building2 className="h-4 w-4 text-primary-foreground" />
+      </div>
+      <span className="font-bold tracking-tight">RentManager</span>
+    </div>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1, bgcolor: 'white', color: 'text.primary' }} elevation={1}>
-        <Toolbar>
-          {isMobile && (
-            <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 2 }}>
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Typography variant="h6" fontWeight={700} color="primary" sx={{ display: { xs: 'block', md: 'none' } }}>
-            RentManager
-          </Typography>
-          <Box sx={{ mx: { xs: 1, sm: 2 } }}>
-            <GlobalSearchBar />
-          </Box>
-          <Box sx={{ flexGrow: 1 }} />
-          <LanguageSwitcher />
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-card md:flex">
+        {brand}
+        <div className="flex-1 overflow-y-auto">{sidebarNav}</div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col md:pl-60">
+        {/* Top bar */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur sm:px-4">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" aria-label="Menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-60 p-0">
+              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              {brand}
+              {sidebarNav}
+            </SheetContent>
+          </Sheet>
+
+          <GlobalSearchBar />
+          <div className="flex-1" />
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
+          <ThemeToggle />
           <NotificationBell />
-          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
-              {user?.firstName?.[0] ?? 'U'}
-            </Avatar>
-          </IconButton>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-            <MenuItem disabled>
-              <Typography variant="body2">{user?.email}</Typography>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={handleLogout}>{t('nav.logout')}</MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
 
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
-        <Drawer
-          variant={isMobile ? 'temporary' : 'permanent'}
-          open={isMobile ? mobileOpen : true}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
-          }}
-        >
-          {drawerContent}
-        </Drawer>
-      </Box>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-sm text-primary-foreground">
+                    {user?.firstName?.[0] ?? 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <span className="block truncate text-sm">{user?.email}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 sm:hidden">
+                <LanguageSwitcher />
+              </div>
+              <DropdownMenuSeparator className="sm:hidden" />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                {t('nav.logout')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
 
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, mt: 8, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}>
-        <Suspense fallback={<Box display="flex" justifyContent="center" mt={8}><CircularProgress /></Box>}>
-          <Outlet />
-        </Suspense>
-      </Box>
-    </Box>
+        {/* Main content */}
+        <main className="flex-1 p-4 md:p-6">
+          <Suspense
+            fallback={
+              <div className="flex justify-center pt-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            }
+          >
+            <Outlet />
+          </Suspense>
+        </main>
+      </div>
+    </div>
   );
 }

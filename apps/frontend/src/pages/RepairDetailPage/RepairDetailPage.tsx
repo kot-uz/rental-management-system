@@ -1,30 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  Paper,
-  Grid,
-  CircularProgress,
-  Alert,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  TextField,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from '@mui/material';
-import { ArrowBack, Edit, Delete } from '@mui/icons-material';
+import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import {
@@ -36,9 +12,33 @@ import {
 } from '../../entities/repairs/api/repairsApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { BackButton, ConfirmDialog, DetailItem } from '../../shared/ui/DetailBits';
 import { EntityTags } from '../../widgets/EntityTags/EntityTags';
 import { PhotosSection } from '../../widgets/PhotosSection/PhotosSection';
 import { formatMoney, formatDate } from '../../shared/utils/formatMoney';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const STATUSES = ['OPEN', 'IN_PROGRESS', 'WAITING', 'COMPLETED', 'CANCELED'] as const;
 
@@ -56,7 +56,6 @@ export function RepairDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { id = '' } = useParams();
-  const [tab, setTab] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [comment, setComment] = useState('');
@@ -67,7 +66,7 @@ export function RepairDetailPage() {
   const [addComment, { isLoading: commenting }] = useAddRepairCommentMutation();
   const [deleteRepair] = useDeleteRepairMutation();
 
-  const { register, handleSubmit, reset } = useForm<EditForm>();
+  const { register, handleSubmit, reset, setValue, watch } = useForm<EditForm>();
 
   const repair = data?.data;
   const comments = repair?.comments ?? [];
@@ -111,18 +110,16 @@ export function RepairDetailPage() {
   const onDelete = async () => {
     await deleteRepair(id);
     setConfirmOpen(false);
-    navigate('/repairs');
+    navigate('/app/repairs');
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" mt={6}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (isLoading) return <PageSpinner />;
   if (error || !repair) {
-    return <Alert severity="error">{t('repairs.failedToLoad')}</Alert>;
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{t('repairs.failedToLoad')}</AlertDescription>
+      </Alert>
+    );
   }
 
   const apartmentLabel = repair.apartment
@@ -130,191 +127,191 @@ export function RepairDetailPage() {
     : '—';
 
   return (
-    <Box>
-      <Button startIcon={<ArrowBack />} onClick={() => navigate('/repairs')} sx={{ mb: 2 }}>
-        {t('common.back')}
-      </Button>
+    <div>
+      <BackButton onClick={() => navigate('/app/repairs')} />
 
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
-        <Box>
-          <Typography variant="h5">{repair.title}</Typography>
-          <Box mt={1} display="flex" gap={1}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{repair.title}</h1>
+          <div className="mt-2 flex gap-2">
             <StatusBadge status={repair.severity} />
             <StatusBadge status={repair.status} />
-          </Box>
-        </Box>
-        <Box display="flex" gap={1} alignItems="center">
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Can permission="repairs:update.operational">
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>{t('repairs.changeStatus')}</InputLabel>
-              <Select
-                value={repair.status}
-                label={t('repairs.changeStatus')}
-                onChange={(e) => transitionRepair({ id, status: e.target.value })}
-              >
+            <Select value={repair.status} onValueChange={(v) => transitionRepair({ id, status: v })}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder={t('repairs.changeStatus')} />
+              </SelectTrigger>
+              <SelectContent>
                 {STATUSES.map((s) => (
-                  <MenuItem key={s} value={s}>
+                  <SelectItem key={s} value={s}>
                     {statusLabel(s)}
-                  </MenuItem>
+                  </SelectItem>
                 ))}
-              </Select>
-            </FormControl>
+              </SelectContent>
+            </Select>
           </Can>
           <Can permission="repairs:update.operational">
-            <Button variant="outlined" startIcon={<Edit />} onClick={openEdit}>
+            <Button variant="outline" onClick={openEdit}>
+              <Pencil className="mr-2 h-4 w-4" />
               {t('common.edit')}
             </Button>
           </Can>
           <Can permission="repairs:delete">
-            <Button color="error" variant="outlined" startIcon={<Delete />} onClick={() => setConfirmOpen(true)}>
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
               {t('common.delete')}
             </Button>
           </Can>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_e, v) => setTab(v)}>
-          <Tab label={t('repairs.details')} />
-          <Tab label={t('repairs.photos')} />
-          <Tab label={`${t('repairs.comments')} (${comments.length})`} />
-        </Tabs>
-      </Paper>
+      <Tabs defaultValue="details">
+        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start">
+          <TabsTrigger value="details">{t('repairs.details')}</TabsTrigger>
+          <TabsTrigger value="photos">{t('repairs.photos')}</TabsTrigger>
+          <TabsTrigger value="comments">{`${t('repairs.comments')} (${comments.length})`}</TabsTrigger>
+        </TabsList>
 
-      {tab === 0 && (
-        <Paper sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            <Detail label={t('common.apartment')} value={apartmentLabel} />
-            <Detail label={t('repairs.severity')} value={repair.severity} />
-            <Detail label={t('common.status')} value={statusLabel(repair.status)} />
-            {repair.location && <Detail label={t('repairs.location')} value={repair.location} />}
-            {repair.costEstimate != null && (
-              <Detail label={t('repairs.costEstimate')} value={formatMoney(repair.costEstimate)} />
-            )}
-            {repair.costActual != null && (
-              <Detail label={t('repairs.costActual')} value={formatMoney(repair.costActual)} />
-            )}
-            {repair.contractorName && (
-              <Detail label={t('repairs.contractorName')} value={repair.contractorName} />
-            )}
-            <Detail label={t('repairs.created')} value={formatDate(repair.createdAt)} />
-            {repair.description && <Detail label={t('common.description')} value={repair.description} full />}
-          </Grid>
-          <Box mt={3} pt={2} borderTop={1} borderColor="divider">
-            <EntityTags entityType="repair" entityId={id} />
-          </Box>
-        </Paper>
-      )}
+        <TabsContent value="details">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailItem label={t('common.apartment')} value={apartmentLabel} />
+                <DetailItem label={t('repairs.severity')} value={repair.severity} />
+                <DetailItem label={t('common.status')} value={statusLabel(repair.status)} />
+                {repair.location && <DetailItem label={t('repairs.location')} value={repair.location} />}
+                {repair.costEstimate != null && (
+                  <DetailItem label={t('repairs.costEstimate')} value={formatMoney(repair.costEstimate)} />
+                )}
+                {repair.costActual != null && (
+                  <DetailItem label={t('repairs.costActual')} value={formatMoney(repair.costActual)} />
+                )}
+                {repair.contractorName && (
+                  <DetailItem label={t('repairs.contractorName')} value={repair.contractorName} />
+                )}
+                <DetailItem label={t('repairs.created')} value={formatDate(repair.createdAt)} />
+                {repair.description && (
+                  <DetailItem label={t('common.description')} value={repair.description} full />
+                )}
+              </div>
+              <div className="mt-6 border-t pt-4">
+                <EntityTags entityType="repair" entityId={id} />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 1 && (
-        <Paper sx={{ p: 3 }}>
-          <PhotosSection ownerType="repair" ownerId={id} />
-        </Paper>
-      )}
+        <TabsContent value="photos">
+          <Card>
+            <CardContent className="p-6">
+              <PhotosSection ownerType="repair" ownerId={id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {tab === 2 && (
-        <Paper sx={{ p: 3 }}>
-          <Can permission="repairs:comment">
-            <Box display="flex" gap={1} mb={2}>
-              <TextField
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder={t('repairs.addComment')}
-                fullWidth
-                size="small"
-                multiline
-              />
-              <Button variant="contained" onClick={onAddComment} disabled={commenting || !comment.trim()}>
-                {commenting ? <CircularProgress size={20} /> : t('common.save')}
-              </Button>
-            </Box>
-          </Can>
-          <Divider />
-          <List>
-            {comments.map((c) => (
-              <ListItem key={c.id} alignItems="flex-start" disableGutters>
-                <ListItemText primary={c.body} secondary={formatDate(c.createdAt)} />
-              </ListItem>
-            ))}
-            {comments.length === 0 && (
-              <Typography color="text.secondary" sx={{ py: 2 }}>
-                {t('repairs.noComments')}
-              </Typography>
-            )}
-          </List>
-        </Paper>
-      )}
+        <TabsContent value="comments">
+          <Card>
+            <CardContent className="p-6">
+              <Can permission="repairs:comment">
+                <div className="mb-4 flex gap-2">
+                  <Textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder={t('repairs.addComment')}
+                    rows={1}
+                    className="min-h-9"
+                  />
+                  <Button onClick={onAddComment} disabled={commenting || !comment.trim()}>
+                    {commenting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {t('common.save')}
+                  </Button>
+                </div>
+                <Separator />
+              </Can>
+              <ul className="divide-y">
+                {comments.map((c) => (
+                  <li key={c.id} className="py-3">
+                    <p className="text-sm">{c.body}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(c.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+              {comments.length === 0 && (
+                <p className="py-3 text-sm text-muted-foreground">{t('repairs.noComments')}</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('common.edit')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSave)}>
-          <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField {...register('title')} label={t('repairs.titleField')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>{t('repairs.severity')}</InputLabel>
-                  <Select {...register('severity')} label={t('repairs.severity')} defaultValue={repair.severity}>
-                    <MenuItem value="LOW">{t('repairs.severityLow')}</MenuItem>
-                    <MenuItem value="MEDIUM">{t('repairs.severityMedium')}</MenuItem>
-                    <MenuItem value="HIGH">{t('repairs.severityHigh')}</MenuItem>
-                    <MenuItem value="CRITICAL">{t('repairs.severityCritical')}</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('location')} label={t('repairs.location')} fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('costEstimate')} label={t('repairs.costEstimate')} type="number" fullWidth />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('costActual')} label={t('repairs.costActual')} type="number" fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('contractorName')} label={t('repairs.contractorName')} fullWidth />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('description')} label={t('common.description')} fullWidth multiline rows={2} />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setEditOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={saving}>
-              {saving ? <CircularProgress size={20} /> : t('common.save')}
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-
-      {/* Delete confirm */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>{t('common.delete')}</DialogTitle>
-        <DialogContent>
-          <Typography>{t('common.deleteConfirm')}</Typography>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('common.edit')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+            <Field label={t('repairs.titleField')} htmlFor="re-title">
+              <Input id="re-title" {...register('title')} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('repairs.severity')}>
+                <Select value={watch('severity')} onValueChange={(v) => setValue('severity', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">{t('repairs.severityLow')}</SelectItem>
+                    <SelectItem value="MEDIUM">{t('repairs.severityMedium')}</SelectItem>
+                    <SelectItem value="HIGH">{t('repairs.severityHigh')}</SelectItem>
+                    <SelectItem value="CRITICAL">{t('repairs.severityCritical')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label={t('repairs.location')} htmlFor="re-location">
+                <Input id="re-location" {...register('location')} />
+              </Field>
+              <Field label={t('repairs.costEstimate')} htmlFor="re-est">
+                <Input id="re-est" type="number" {...register('costEstimate')} />
+              </Field>
+              <Field label={t('repairs.costActual')} htmlFor="re-act">
+                <Input id="re-act" type="number" {...register('costActual')} />
+              </Field>
+            </div>
+            <Field label={t('repairs.contractorName')} htmlFor="re-contractor">
+              <Input id="re-contractor" {...register('contractorName')} />
+            </Field>
+            <Field label={t('common.description')} htmlFor="re-desc">
+              <Textarea id="re-desc" rows={2} {...register('description')} />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
-          <Button color="error" variant="contained" onClick={onDelete}>
-            {t('common.delete')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
-  );
-}
 
-function Detail({ label, value, full }: { label: string; value: string; full?: boolean }) {
-  return (
-    <Grid item xs={12} sm={full ? 12 : 6}>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography>{value}</Typography>
-    </Grid>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('common.delete')}
+        description={t('common.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        onConfirm={onDelete}
+      />
+    </div>
   );
 }

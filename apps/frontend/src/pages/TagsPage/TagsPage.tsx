@@ -1,27 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TableContainer,
-  CircularProgress,
-  Alert,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useGetTagsQuery,
@@ -31,6 +9,28 @@ import {
   Tag,
 } from '../../entities/tags/api/tagsApi';
 import { Can } from '../../shared/ui/Can';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 const PRESET_COLORS = ['#607d8b', '#4caf50', '#2196f3', '#ff9800', '#e91e63', '#9c27b0', '#f44336', '#009688'];
 
@@ -38,6 +38,17 @@ function contrast(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   return r * 0.299 + g * 0.587 + b * 0.114 > 150 ? '#000' : '#fff';
+}
+
+function TagChip({ name, color }: { name: string; color: string }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+      style={{ backgroundColor: color, color: contrast(color) }}
+    >
+      {name}
+    </span>
+  );
 }
 
 export function TagsPage() {
@@ -95,97 +106,122 @@ export function TagsPage() {
   };
 
   return (
-    <Box maxWidth={720}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Typography variant="h5">{t('tags.title')}</Typography>
+    <div className="max-w-3xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('tags.title')}</h1>
         <Can permission="tags:create">
-          <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
             {t('tags.add')}
           </Button>
         </Can>
-      </Box>
+      </div>
 
-      {isLoading && <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>}
-      {error && <Alert severity="error">{t('tags.failedToLoad')}</Alert>}
+      {isLoading && <PageSpinner />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('tags.failedToLoad')}</AlertDescription>
+        </Alert>
+      )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('tags.tag')}</TableCell>
-              <TableCell align="right">{t('tags.usage')}</TableCell>
-              <TableCell align="right">{t('common.action')}</TableCell>
+              <TableHead>{t('tags.tag')}</TableHead>
+              <TableHead className="text-right">{t('tags.usage')}</TableHead>
+              <TableHead className="text-right">{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {tags.map((tag) => (
-              <TableRow key={tag.id} hover>
+              <TableRow key={tag.id}>
                 <TableCell>
-                  <Chip label={tag.name} size="small" sx={{ bgcolor: tag.color ?? '#607d8b', color: contrast(tag.color ?? '#607d8b') }} />
+                  <TagChip name={tag.name} color={tag.color ?? '#607d8b'} />
                 </TableCell>
-                <TableCell align="right">{tag.usageCount ?? 0}</TableCell>
-                <TableCell align="right">
+                <TableCell className="text-right">{tag.usageCount ?? 0}</TableCell>
+                <TableCell className="text-right">
                   <Can permission="tags:update">
-                    <Tooltip title={t('common.edit')}>
-                      <IconButton size="small" onClick={() => openEdit(tag)}><Edit fontSize="small" /></IconButton>
-                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title={t('common.edit')}
+                      onClick={() => openEdit(tag)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </Can>
                   <Can permission="tags:delete">
-                    <Tooltip title={t('common.delete')}>
-                      <IconButton size="small" color="error" onClick={() => onDelete(tag)}><Delete fontSize="small" /></IconButton>
-                    </Tooltip>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title={t('common.delete')}
+                      onClick={() => onDelete(tag)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </Can>
                 </TableCell>
               </TableRow>
             ))}
             {!isLoading && tags.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
                   {t('tags.none')}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{editing ? t('tags.edit') : t('tags.add')}</DialogTitle>
-        <DialogContent>
-          <TextField
-            label={t('tags.name')}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            fullWidth
-            autoFocus
-            sx={{ mt: 1, mb: 2 }}
-          />
-          <Typography variant="caption" color="text.secondary">{t('tags.color')}</Typography>
-          <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-            {PRESET_COLORS.map((c) => (
-              <Box
-                key={c}
-                onClick={() => setColor(c)}
-                sx={{
-                  width: 28, height: 28, borderRadius: '50%', bgcolor: c, cursor: 'pointer',
-                  border: color === c ? '3px solid' : '2px solid transparent',
-                  borderColor: color === c ? 'text.primary' : 'transparent',
-                }}
-              />
-            ))}
-          </Box>
-          <Box mt={2}>
-            <Chip label={name || t('tags.preview')} size="small" sx={{ bgcolor: color, color: contrast(color) }} />
-          </Box>
-          {formError && <Alert severity="error" sx={{ mt: 2 }}>{formError}</Alert>}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editing ? t('tags.edit') : t('tags.add')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label={t('tags.name')} htmlFor="tag-name">
+              <Input id="tag-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </Field>
+            <div>
+              <p className="mb-2 text-xs text-muted-foreground">{t('tags.color')}</p>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      'h-7 w-7 rounded-full border-2 transition-transform hover:scale-110',
+                      color === c ? 'border-foreground' : 'border-transparent',
+                    )}
+                    style={{ backgroundColor: c }}
+                    aria-label={c}
+                  />
+                ))}
+              </div>
+            </div>
+            <TagChip name={name || t('tags.preview')} color={color} />
+            {formError && (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={onSubmit} disabled={creating || updating || !name.trim()}>
+              {(creating || updating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
-          <Button variant="contained" onClick={onSubmit} disabled={creating || updating || !name.trim()}>
-            {creating || updating ? <CircularProgress size={20} /> : t('common.save')}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 }

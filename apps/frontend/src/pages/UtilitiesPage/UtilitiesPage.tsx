@@ -1,37 +1,10 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  CircularProgress,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Grid,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  TableContainer,
-  IconButton,
-  Tooltip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-} from '@mui/material';
-import { Add, AttachFile, Close, Upload } from '@mui/icons-material';
+import { Loader2, Paperclip, Plus, Upload, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   useGetUtilitiesQuery,
   useCreateUtilityMutation,
@@ -42,10 +15,35 @@ import {
 import { useGetApartmentsQuery } from '../../entities/apartments/api/apartmentsApi';
 import { useUploadFileMutation } from '../../entities/files/api/filesApi';
 import { StatusBadge } from '../../shared/ui/StatusBadge';
+import { Field } from '../../shared/ui/Field';
+import { PageSpinner } from '../../shared/ui/Spinner';
 import { formatMoney, formatMonthYear } from '../../shared/utils/formatMoney';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const schema = z.object({
   apartmentId: z.string().min(1),
@@ -78,9 +76,20 @@ export function UtilitiesPage() {
   const [markPaid] = useMarkUtilityPaidMutation();
   const [uploadFile, { isLoading: uploading }] = useUploadFileMutation();
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { type: 'ELECTRICITY', periodYear: now.getFullYear(), periodMonth: now.getMonth() + 1 },
+    defaultValues: {
+      type: 'ELECTRICITY',
+      periodYear: now.getFullYear(),
+      periodMonth: now.getMonth() + 1,
+    },
   });
 
   const handleClose = () => {
@@ -124,47 +133,58 @@ export function UtilitiesPage() {
   const isBusy = creating || uploading;
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
-        <Typography variant="h5">{t('utilities.title')}</Typography>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)}>{t('utilities.addRecord')}</Button>
-      </Box>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t('utilities.title')}</h1>
+        <Button onClick={() => setOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          {t('utilities.addRecord')}
+        </Button>
+      </div>
 
-      {isLoading && <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>}
-      {error && <Alert severity="error">{t('utilities.failedToLoad')}</Alert>}
+      {isLoading && <PageSpinner />}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{t('utilities.failedToLoad')}</AlertDescription>
+        </Alert>
+      )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
+      <Card>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell>{t('common.apartment')}</TableCell>
-              <TableCell>{t('common.type')}</TableCell>
-              <TableCell>{t('common.period')}</TableCell>
-              <TableCell align="right">{t('common.amount')}</TableCell>
-              <TableCell>{t('common.status')}</TableCell>
-              <TableCell>{t('common.action')}</TableCell>
+              <TableHead>{t('common.apartment')}</TableHead>
+              <TableHead>{t('common.type')}</TableHead>
+              <TableHead>{t('common.period')}</TableHead>
+              <TableHead className="text-right">{t('common.amount')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead>{t('common.action')}</TableHead>
             </TableRow>
-          </TableHead>
+          </TableHeader>
           <TableBody>
             {records.map((r) => (
               <TableRow
                 key={r.id}
-                hover
-                sx={{ cursor: 'pointer' }}
-                onClick={() => navigate(`/utilities/${r.id}`)}
+                className="cursor-pointer"
+                onClick={() => navigate(`/app/utilities/${r.id}`)}
               >
                 <TableCell>{r.apartment?.address ?? '—'}</TableCell>
                 <TableCell>{r.type}</TableCell>
                 <TableCell>{formatMonthYear(r.periodYear, r.periodMonth)}</TableCell>
-                <TableCell align="right">{formatMoney(r.amount)}</TableCell>
-                <TableCell><StatusBadge status={r.status} /></TableCell>
+                <TableCell className="text-right">{formatMoney(r.amount)}</TableCell>
+                <TableCell>
+                  <StatusBadge status={r.status} />
+                </TableCell>
                 <TableCell>
                   {r.status === 'UNPAID' && (
                     <Button
-                      size="small"
-                      variant="outlined"
-                      color="success"
-                      onClick={(e) => { e.stopPropagation(); void markPaid(r.id); }}
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-600/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void markPaid(r.id);
+                      }}
                     >
                       {t('utilities.markPaid')}
                     </Button>
@@ -173,106 +193,139 @@ export function UtilitiesPage() {
               </TableRow>
             ))}
             {!isLoading && records.length === 0 && (
-              <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>{t('utilities.noRecords')}</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  {t('utilities.noRecords')}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
-      </TableContainer>
+      </Card>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{t('utilities.addDialog')}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <FormControl fullWidth size="small" error={!!errors.apartmentId}>
-                  <InputLabel>{t('utilities.apartmentLabel')}</InputLabel>
-                  <Select {...register('apartmentId')} label={t('utilities.apartmentLabel')} defaultValue="">
-                    {apartments.map((a) => (
-                      <MenuItem key={a.id} value={a.id}>{a.address}{a.unitNumber ? ` · ${a.unitNumber}` : ''}</MenuItem>
+      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('utilities.addDialog')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label={t('utilities.apartmentLabel')} error={errors.apartmentId?.message}>
+              <Select
+                value={watch('apartmentId') ?? ''}
+                onValueChange={(v) => setValue('apartmentId', v, { shouldValidate: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {apartments.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.address}
+                      {a.unitNumber ? ` · ${a.unitNumber}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('utilities.typeLabel')}>
+                <Select value={watch('type')} onValueChange={(v) => setValue('type', v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UTILITY_TYPES.map((ut) => (
+                      <SelectItem key={ut} value={ut}>
+                        {ut}
+                      </SelectItem>
                     ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>{t('utilities.typeLabel')}</InputLabel>
-                  <Select {...register('type')} label={t('utilities.typeLabel')} defaultValue="ELECTRICITY">
-                    {UTILITY_TYPES.map((ut) => <MenuItem key={ut} value={ut}>{ut}</MenuItem>)}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={3}>
-                <TextField {...register('periodYear')} label={t('common.year')} type="number" fullWidth size="small" />
-              </Grid>
-              <Grid item xs={3}>
-                <TextField {...register('periodMonth')} label={t('common.month')} type="number" fullWidth size="small" inputProps={{ min: 1, max: 12 }} />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('amount')} label={t('utilities.amountLabel')} type="number" fullWidth size="small" error={!!errors.amount} />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('readingFrom')} label={t('utilities.readingFrom')} type="number" fullWidth size="small" />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField {...register('readingTo')} label={t('utilities.readingTo')} type="number" fullWidth size="small" />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField {...register('notes')} label={t('common.notes')} fullWidth size="small" />
-              </Grid>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t('common.year')} htmlFor="ut-year">
+                  <Input id="ut-year" type="number" {...register('periodYear')} />
+                </Field>
+                <Field label={t('common.month')} htmlFor="ut-month">
+                  <Input id="ut-month" type="number" min={1} max={12} {...register('periodMonth')} />
+                </Field>
+              </div>
+            </div>
+            <Field label={t('utilities.amountLabel')} htmlFor="ut-amount" error={errors.amount?.message}>
+              <Input id="ut-amount" type="number" step="0.01" {...register('amount')} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('utilities.readingFrom')} htmlFor="ut-from">
+                <Input id="ut-from" type="number" {...register('readingFrom')} />
+              </Field>
+              <Field label={t('utilities.readingTo')} htmlFor="ut-to">
+                <Input id="ut-to" type="number" {...register('readingTo')} />
+              </Field>
+            </div>
+            <Field label={t('common.notes')} htmlFor="ut-notes">
+              <Input id="ut-notes" {...register('notes')} />
+            </Field>
 
-              {/* Multi-file upload */}
-              <Grid item xs={12}>
-                <input
-                  id="receipt-file-input"
-                  type="file"
-                  accept={ACCEPTED_TYPES}
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const added = Array.from(e.target.files ?? []);
-                    setReceiptFiles((prev) => [...prev, ...added]);
-                    setUploadError('');
-                    e.target.value = '';
-                  }}
-                />
-                <label htmlFor="receipt-file-input">
-                  <Button component="span" variant="outlined" startIcon={<Upload />} fullWidth size="small">
-                    {t('utilities.attachReceipts')}
-                  </Button>
-                </label>
+            {/* Multi-file upload */}
+            <div>
+              <input
+                id="receipt-file-input"
+                type="file"
+                accept={ACCEPTED_TYPES}
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const added = Array.from(e.target.files ?? []);
+                  setReceiptFiles((prev) => [...prev, ...added]);
+                  setUploadError('');
+                  e.target.value = '';
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => document.getElementById('receipt-file-input')?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {t('utilities.attachReceipts')}
+              </Button>
 
-                {receiptFiles.length > 0 && (
-                  <List dense sx={{ mt: 1 }}>
-                    {receiptFiles.map((f, i) => (
-                      <ListItem key={i} disableGutters sx={{ py: 0.25 }}>
-                        <AttachFile fontSize="small" color="primary" sx={{ mr: 1, flexShrink: 0 }} />
-                        <ListItemText
-                          primary={f.name}
-                          primaryTypographyProps={{ variant: 'body2', noWrap: true }}
-                          sx={{ overflow: 'hidden' }}
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton size="small" edge="end" onClick={() => removeFile(i)}>
-                            <Close fontSize="small" />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-                {uploadError && <Typography variant="caption" color="error" mt={0.5} display="block">{uploadError}</Typography>}
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={handleClose}>{t('common.cancel')}</Button>
-            <Button type="submit" variant="contained" disabled={isBusy}>
-              {isBusy ? <CircularProgress size={20} /> : t('common.create')}
-            </Button>
-          </DialogActions>
-        </Box>
+              {receiptFiles.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {receiptFiles.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm">
+                      <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => removeFile(i)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {uploadError && <p className="mt-1 text-xs text-destructive">{uploadError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={handleClose}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={isBusy}>
+                {isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t('common.create')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
-    </Box>
+    </div>
   );
 }
