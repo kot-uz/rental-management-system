@@ -71,7 +71,7 @@ export function AccountingPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">{t('accounting.title')}</h1>
         <Can permission="accounting:update">

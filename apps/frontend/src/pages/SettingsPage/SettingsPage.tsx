@@ -84,7 +84,7 @@ export function SettingsPage() {
   if (isLoading) return <PageSpinner />;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="mb-6 text-2xl font-bold tracking-tight">{t('settings.title')}</h1>
 
       <ProfileSection />
