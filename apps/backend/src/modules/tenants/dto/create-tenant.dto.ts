@@ -2,7 +2,6 @@ import {
   IsString,
   IsOptional,
   IsEnum,
-  IsPhoneNumber,
   MaxLength,
   MinLength,
 } from 'class-validator';
